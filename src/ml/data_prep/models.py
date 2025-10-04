@@ -1,6 +1,8 @@
 import pandas as pd
+from pprint import pformat  # Add this to imports
 import pickle
 import os
+import json
 import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
@@ -18,7 +20,8 @@ from skopt.space import Real, Integer, Categorical
 from tqdm import tqdm
 from src.ml import logger
 from src.ml.data_prep.metrics import (compute_and_show_confusion_matrix, 
-                                      get_classification_metrics)
+                                      get_classification_metrics,
+                                      compare_models_metrics)
 
 
 class ModelOptimizer:
@@ -68,10 +71,13 @@ class ModelOptimizer:
         
         # Define the models to include
         models = {
-            # 'Logistic Regression': LogisticRegression(
-            #     solver='liblinear',
-            #     random_state=self.random_state
-            # ),
+            'Logistic Regression': LogisticRegression(
+                solver='liblinear',
+                random_state=self.random_state
+            ),
+            'Decision Tree': DecisionTreeClassifier(
+                random_state=self.random_state
+            ),
             # 'Random Forest': RandomForestClassifier(
             #     random_state=self.random_state
             # ),
@@ -80,9 +86,6 @@ class ModelOptimizer:
             # ),
             # 'XGBoost': XGBClassifier(random_state=self.random_state),
             # 'SVM': SVC(random_state=self.random_state, probability=True),
-            'Decision Tree': DecisionTreeClassifier(
-                random_state=self.random_state
-            )
         }
         
         logger.info(f"Creating pipelines for {len(models)} models: {list(models.keys())}")
@@ -223,6 +226,7 @@ class ModelOptimizer:
             scoring=scoring,
             random_state=self.random_state,
             n_jobs=n_jobs,
+            refit=True,
             verbose=1
         )
         # Ensure y_train is a 1D numpy array
@@ -284,8 +288,8 @@ class ModelOptimizer:
         with open(results_path, 'w') as f:
             json.dump(result_summary, f, indent=2)
         
-        logger.info(f"Model {model_name} and results saved")
-        print(f"Model {model_name} saved to {model_path}")
+        # logger.info(f"Model {model_name} and results saved")
+        logger.info(f"Model {model_name} saved to {model_path}")
 
     def save_models_and_results(self, pipeline_results):
         """
@@ -328,7 +332,6 @@ class ModelOptimizer:
             pickle.dump(results_summary, f)
         
         logger.info(f"Models and results saved to {self.model_save_dir}")
-        print(f"Models and results saved to {self.model_save_dir}")
 
     def train_all_models(
             self,
@@ -376,7 +379,7 @@ class ModelOptimizer:
         # Use tqdm for progress tracking
         for model_name in tqdm(model_names, desc="Training models", unit="model"):
             logger.info(f"Starting optimization for {model_name}")
-            print(f"\nOptimizing {model_name}...")
+            logger.info(f"\nOptimizing {model_name}...")
 
             pipeline_results = self.optimize_model_with_bayesian_search(
                 pipeline=self.pipelines[model_name],
@@ -395,14 +398,14 @@ class ModelOptimizer:
             optimized_models[model_name] = pipeline_results["trained_pipeline"]
 
             logger.info(f"Completed optimization for {model_name} - Best score: {pipeline_results['best_score']:.4f}")
-            print(f"Best score for {model_name}: "
+            logger.info(f"Best score for {model_name}: "
                   f"{pipeline_results['best_score']:.4f}")
-            print(f"Best parameters for {model_name}: "
+            logger.info(f"Best parameters for {model_name}: "
                   f"{pipeline_results['best_params']}")
 
         self.optimized_models = optimized_models
         logger.info(f"Completed training of all {len(optimized_models)} models")
-        
+
         return optimized_models
 
     def evaluate_models(
@@ -430,22 +433,52 @@ class ModelOptimizer:
         # Use tqdm for progress tracking during evaluation
         for model_name in tqdm(model_names, desc="Evaluating models", unit="model"):
             logger.info(f"Evaluating {model_name}")
-            print(f"\nEvaluating {model_name}...")
+            logger.info(f"\nEvaluating {model_name}...")
             
             # Use the trained models passed as parameter, not self.pipelines
             y_pred = models[model_name].predict(X_test)
             y_pred_proba = models[model_name].predict_proba(X_test)
 
-            results[model_name] = (y_test, y_pred, y_pred_proba)
+            # Store predictions temporarily for metrics computation (not saved to results)
+            results[model_name] = {
+                "y_test": list(y_test),
+                "y_pred": list(y_pred),
+                "y_pred_proba": list(y_pred_proba)
+            }
 
-            print(f"Confusion matrix for {model_name}:")
+            logger.info(f"Confusion matrix for {model_name}:")
             compute_and_show_confusion_matrix(y_test, y_pred, model_name)
 
-            print(f"Metrics for {model_name}:")
+            logger.info(f"Metrics for {model_name}:")
             metrics = get_classification_metrics(y_test, y_pred, y_pred_proba, model_name)
-            print(metrics)
+            results[model_name]["metrics"] = metrics
+            logger.info("\n" + pformat(metrics, indent=4))
+
+            logger.info(f"Comparison of metrics for {model_name}:")
+            comparison_df = compare_models_metrics(results)
+            # logger.info("\n" + pformat(comparison_df, indent=4))
+
+            comparison_df.to_csv(
+                os.path.join(self.model_save_dir, f'{model_name}_comparison_metrics.csv'), index=False)
+
+            # Save metrics as JSON with columns and values as separate lists
+            metrics_json = {
+                "columns": comparison_df.columns.tolist(),
+                "values": comparison_df.values.tolist()
+            }
             
+            metrics_json_path = os.path.join(self.model_save_dir, f'{model_name}_comparison_metrics.json')
+            with open(metrics_json_path, 'w') as f:
+                json.dump(metrics_json, f, indent=2)
+            
+            logger.info(f"Saved metrics to {metrics_json_path}")
             logger.info(f"Completed evaluation for {model_name}")
+        
+        # Remove predictions from results before returning (only keep metrics)
+        for model_name in results.keys():
+            results[model_name] = {
+                "metrics": results[model_name]["metrics"]
+            }
 
         logger.info(f"Completed evaluation of all {len(results)} models")
         return results

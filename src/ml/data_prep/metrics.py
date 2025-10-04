@@ -5,6 +5,10 @@ from sklearn.metrics import precision_recall_curve, average_precision_score
 from sklearn.metrics import f1_score, precision_score, recall_score
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.metrics import ConfusionMatrixDisplay
+import os
 from src.ml import logger
 
 
@@ -37,6 +41,8 @@ def compute_and_show_confusion_matrix(
     pd.DataFrame
         Confusion matrix as a DataFrame with proper labels
     """
+
+    
     # Compute confusion matrix
     cm = confusion_matrix(y_true, y_pred, normalize=normalize)
     logger.info(f"Confusion matrix: {y_true.shape} vs {y_pred.shape}")
@@ -58,9 +64,27 @@ def compute_and_show_confusion_matrix(
                     index=[f'True {label}' for label in labels],
                     columns=[f'Pred {label}' for label in labels])
     
-    print(f"\nConfusion Matrix for {model_name}")
-    print("=" * (len(model_name) + 20))
-    print(cm_df.round(3))
+    logger.info(f"\nConfusion Matrix for {model_name}")
+    logger.info("=" * (len(model_name) + 20))
+    logger.info(cm_df.round(3))
+    
+    # Create and save confusion matrix heatmap
+    plt.figure(figsize=(8, 6))
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=labels)
+    disp.plot(cmap='Blues', values_format='.3f' if normalize else 'd')
+    plt.title(f'Confusion Matrix - {model_name}')
+    plt.tight_layout()
+    
+    # Save the heatmap
+    models_dir = "/Users/hamzaboulaala/Documents/github/NASA-hack/models"
+    os.makedirs(models_dir, exist_ok=True)
+    clean_name = model_name.replace(' ', '_').replace('/', '_')
+    heatmap_path = os.path.join(models_dir, f'{clean_name}_confusion_matrix.png')
+    plt.savefig(heatmap_path, dpi=300, bbox_inches='tight')
+    plt.close()
+    
+    logger.info(f"Saved confusion matrix heatmap to {heatmap_path}")
+    
     return cm_df
 
 
@@ -105,8 +129,14 @@ def get_classification_metrics(y_true, y_pred, y_pred_proba=None, model_name="Mo
         try:
             # For binary classification
             if len(np.unique(y_true)) == 2:
-                roc_auc = roc_auc_score(y_true, y_pred_proba[:, 1] if y_pred_proba.ndim > 1 else y_pred_proba)
-                pr_auc = average_precision_score(y_true, y_pred_proba[:, 1] if y_pred_proba.ndim > 1 else y_pred_proba)
+                roc_auc = roc_auc_score(
+                    y_true,
+                    y_pred_proba[:, 1]
+                    if y_pred_proba.ndim > 1 else y_pred_proba)
+                pr_auc = average_precision_score(
+                    y_true,
+                    y_pred_proba[:, 1]
+                    if y_pred_proba.ndim > 1 else y_pred_proba)
                 metrics['ROC AUC'] = roc_auc
                 metrics['PR AUC'] = pr_auc
             else:
@@ -145,15 +175,19 @@ def compare_models_metrics(models_results):
     
     all_metrics = []
     
-    for model_name, (y_true, y_pred, y_pred_proba) in models_results.items():
-        model_metrics = get_classification_metrics(y_true, y_pred, y_pred_proba, model_name)
+    for model_name, results in models_results.items():
+        y_true = results["y_test"]
+        y_pred = results["y_pred"]
+        y_pred_proba = results["y_pred_proba"]
+        model_metrics = get_classification_metrics(
+            y_true, y_pred, y_pred_proba, model_name)
         all_metrics.append(model_metrics)
     
     # Combine all metrics
     comparison_df = pd.concat(all_metrics, ignore_index=True)
     
     # Sort by F1-Score (or any other metric you prefer)
-    comparison_df = comparison_df.sort_values('F1-Score', ascending=False)
+    comparison_df = comparison_df.sort_values('Accuracy', ascending=False)
     
     return comparison_df
 

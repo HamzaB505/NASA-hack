@@ -3,6 +3,7 @@ from src.ml.data_prep.models import ModelOptimizer
 from src.ml import logger
 import pandas as pd
 import numpy as np
+from pprint import pformat
 
 
 class Trainer:
@@ -38,7 +39,7 @@ class Trainer:
             y_test = np.asarray(y_test).ravel()
 
         logger.info(f"Data split completed - Train: {X_train.shape}, "
-                   f"Test: {X_test.shape}")
+                    f"Test: {X_test.shape}")
         logger.info(f"y_train shape: {y_train.shape}, y_test shape: {y_test.shape}")
         
         logger.info("Initializing model optimizer")
@@ -46,13 +47,23 @@ class Trainer:
         
         logger.info("Training all models")
         models = model_optimizer.train_all_models(
-            X_train, y_train, cv=cv, n_iter=n_iter, scoring=scoring, n_jobs=n_jobs)
+                X_train,
+                y_train,
+                cv=cv,
+                n_iter=n_iter,
+                scoring=scoring,
+                n_jobs=n_jobs)
         logger.info(f"Model training completed for {len(models)} models")
         
         logger.info("Evaluating models on test set")
         results = model_optimizer.evaluate_models(X_test, y_test, models)
-        logger.info(f"Model evaluation completed")
-        logger.info(f"Training results: {results}")
-        
+
+        logger.info("Model evaluation completed")
+        # logger.info(f"Training results: {results}")
+        if isinstance(results, dict):
+            logger.info("Training results:\n" + pformat(results, indent=4))
+        else:
+            logger.info("Training results:\n" + str(results))
+
         logger.info("Training process completed successfully")
         return results

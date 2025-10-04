@@ -17,7 +17,8 @@ def compute_and_show_confusion_matrix(
         y_pred: pd.Series,
         model_name: str = "Model",
         normalize: bool = None,
-        display_labels: list[str] = None):
+        display_labels: list[str] = None,
+        save_dir: str = None):
     """
     Compute and display confusion matrix with nice formatting.
     
@@ -35,6 +36,8 @@ def compute_and_show_confusion_matrix(
     display_labels : array-like of shape (n_classes,), default=None
         Target names used for plotting. By default, labels will be used if it is defined,
         otherwise the unique labels of y_true and y_pred will be used.
+    save_dir : str, default=None
+        Directory to save the confusion matrix heatmap. If None, uses default models directory.
     
     Returns:
     --------
@@ -76,10 +79,11 @@ def compute_and_show_confusion_matrix(
     plt.tight_layout()
     
     # Save the heatmap
-    models_dir = "/Users/hamzaboulaala/Documents/github/NASA-hack/models"
-    os.makedirs(models_dir, exist_ok=True)
+    if save_dir is None:
+        save_dir = "/Users/hamzaboulaala/Documents/github/NASA-hack/models"
+    os.makedirs(save_dir, exist_ok=True)
     clean_name = model_name.replace(' ', '_').replace('/', '_')
-    heatmap_path = os.path.join(models_dir, f'{clean_name}_confusion_matrix.png')
+    heatmap_path = os.path.join(save_dir, f'{clean_name}_confusion_matrix.png')
     plt.savefig(heatmap_path, dpi=300, bbox_inches='tight')
     plt.close()
     

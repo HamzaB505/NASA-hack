@@ -8,6 +8,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from xgboost import XGBClassifier
 from sklearn.svm import SVC
+from sklearn.linear_model import Perceptron
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
@@ -46,8 +47,11 @@ class ModelOptimizer:
 
         self.random_state = random_state
         self.model_save_dir = model_save_dir
+        
+        # Use a shared cache directory to avoid duplication across timestamped runs
+        cache_dir = "/Users/hamzaboulaala/Documents/github/NASA-hack/models/cache"
         self.memory = Memory(
-                    location=os.path.join(model_save_dir, "cache"),
+                    location=cache_dir,
                     compress=True,
                     verbose=0)
 
@@ -78,14 +82,15 @@ class ModelOptimizer:
             'Decision Tree': DecisionTreeClassifier(
                 random_state=self.random_state
             ),
-            # 'Random Forest': RandomForestClassifier(
-            #     random_state=self.random_state
-            # ),
-            # 'Gradient Boosting': GradientBoostingClassifier(
-            #     random_state=self.random_state
-            # ),
-            # 'XGBoost': XGBClassifier(random_state=self.random_state),
-            # 'SVM': SVC(random_state=self.random_state, probability=True),
+            'Random Forest': RandomForestClassifier(
+                random_state=self.random_state
+            ),
+            'Gradient Boosting': GradientBoostingClassifier(
+                random_state=self.random_state
+            ),
+            'XGBoost': XGBClassifier(random_state=self.random_state),
+            'SVM': SVC(random_state=self.random_state, probability=True),
+            'Perceptron': Perceptron(random_state=self.random_state),
         }
         
         logger.info(f"Creating pipelines for {len(models)} models: {list(models.keys())}")
@@ -125,19 +130,19 @@ class ModelOptimizer:
         
         search_spaces = {
             'Logistic Regression': {
-                'feature_selector__max_features': Integer(5, 20),
+                'feature_selector__max_features': Integer(5, 30),
                 'classifier__C': Real(0.01, 100, prior='log-uniform'),
                 'classifier__penalty': Categorical(['l1', 'l2'])
             },
             
             'Random Forest': {
-                'feature_selector__max_features': Integer(5, 20),
+                'feature_selector__max_features': Integer(5, 30),
                 'classifier__n_estimators': Integer(50, 300),
                 'classifier__min_samples_split': Integer(2, 20)
             },
             
             'Gradient Boosting': {
-                'feature_selector__max_features': Integer(5, 20),
+                'feature_selector__max_features': Integer(5, 30),
                 'classifier__n_estimators': Integer(50, 300),
                 'classifier__learning_rate': Real(
                     0.01, 0.3, prior='log-uniform'
@@ -146,7 +151,7 @@ class ModelOptimizer:
             },
             
             'XGBoost': {
-                'feature_selector__max_features': Integer(5, 20),
+                'feature_selector__max_features': Integer(5, 30),
                 'classifier__n_estimators': Integer(50, 300),
                 'classifier__learning_rate': Real(
                     0.01, 0.3, prior='log-uniform'
@@ -155,13 +160,17 @@ class ModelOptimizer:
             },
             
             'SVM': {
-                'feature_selector__max_features': Integer(5, 20),
+                'feature_selector__max_features': Integer(5, 30),
                 'classifier__C': Real(0.1, 100, prior='log-uniform')
             },
             
             'Decision Tree': {
-                'feature_selector__max_features': Integer(5, 20),
+                'feature_selector__max_features': Integer(5, 30),
                 'classifier__min_samples_split': Integer(2, 20)
+            },
+            'Perceptron': {
+                'feature_selector__max_features': Integer(5, 30),
+                'classifier__alpha': Real(0.0001, 0.1, prior='log-uniform')
             }
         }
         
@@ -223,6 +232,7 @@ class ModelOptimizer:
             search_spaces=search_space,
             n_iter=n_iter,
             cv=stratified_cv,
+            n_points=10,
             scoring=scoring,
             random_state=self.random_state,
             n_jobs=n_jobs,
@@ -378,7 +388,7 @@ class ModelOptimizer:
 
         # Use tqdm for progress tracking
         for model_name in tqdm(model_names, desc="Training models", unit="model"):
-            logger.info(f"Starting optimization for {model_name}")
+            logger.info(f"Starting training for {model_name}")
             logger.info(f"\nOptimizing {model_name}...")
 
             pipeline_results = self.optimize_model_with_bayesian_search(
@@ -447,7 +457,7 @@ class ModelOptimizer:
             }
 
             logger.info(f"Confusion matrix for {model_name}:")
-            compute_and_show_confusion_matrix(y_test, y_pred, model_name)
+            compute_and_show_confusion_matrix(y_test, y_pred, model_name, save_dir=self.model_save_dir)
 
             logger.info(f"Metrics for {model_name}:")
             metrics = get_classification_metrics(y_test, y_pred, y_pred_proba, model_name)
@@ -458,8 +468,10 @@ class ModelOptimizer:
             comparison_df = compare_models_metrics(results)
             # logger.info("\n" + pformat(comparison_df, indent=4))
 
+            # Clean model name for filename
+            clean_name = model_name.replace(' ', '_').replace('/', '_')
             comparison_df.to_csv(
-                os.path.join(self.model_save_dir, f'{model_name}_comparison_metrics.csv'), index=False)
+                os.path.join(self.model_save_dir, f'{clean_name}_comparison_metrics.csv'), index=False)
 
             # Save metrics as JSON with columns and values as separate lists
             metrics_json = {
@@ -467,7 +479,7 @@ class ModelOptimizer:
                 "values": comparison_df.values.tolist()
             }
             
-            metrics_json_path = os.path.join(self.model_save_dir, f'{model_name}_comparison_metrics.json')
+            metrics_json_path = os.path.join(self.model_save_dir, f'{clean_name}_comparison_metrics.json')
             with open(metrics_json_path, 'w') as f:
                 json.dump(metrics_json, f, indent=2)
             

@@ -13,6 +13,7 @@ class Trainer:
     def trigger_training(
             self,
             filename: str,
+            model_save_dir: str = None,
             cv: int = 5,
             n_iter: int = 50,
             scoring: str = 'accuracy',
@@ -43,7 +44,7 @@ class Trainer:
         logger.info(f"y_train shape: {y_train.shape}, y_test shape: {y_test.shape}")
         
         logger.info("Initializing model optimizer")
-        model_optimizer = ModelOptimizer()
+        model_optimizer = ModelOptimizer(model_save_dir=model_save_dir)
         
         logger.info("Training all models")
         models = model_optimizer.train_all_models(

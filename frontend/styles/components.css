@@ -11,6 +11,13 @@
     gap: var(--spacing-xl);
 }
 
+<<<<<<< HEAD
+=======
+.analytics-grid .full-width {
+    grid-column: 1 / -1;
+}
+
+>>>>>>> ea08e74f096fe53284d3ab221b4cd1688a279e9b
 /* Chart Components */
 .chart-container {
     position: relative;
@@ -232,6 +239,85 @@
     border: 1px solid var(--secondary-color);
 }
 
+<<<<<<< HEAD
+=======
+/* Metrics Comparison Table */
+.metrics-table-container {
+    overflow-x: auto;
+    margin: var(--spacing-lg) 0;
+}
+
+.metrics-comparison-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: var(--font-size-sm);
+}
+
+.metrics-comparison-table thead {
+    background: var(--tertiary-bg);
+}
+
+.metrics-comparison-table th {
+    padding: var(--spacing-md);
+    text-align: left;
+    font-weight: 600;
+    color: var(--primary-color);
+    border-bottom: 2px solid var(--primary-color);
+    white-space: nowrap;
+}
+
+.metrics-comparison-table th:first-child {
+    border-top-left-radius: var(--radius-sm);
+}
+
+.metrics-comparison-table th:last-child {
+    border-top-right-radius: var(--radius-sm);
+}
+
+.metrics-comparison-table tbody tr {
+    transition: background-color 0.2s ease;
+}
+
+.metrics-comparison-table tbody tr:hover {
+    background: rgba(0, 212, 255, 0.05);
+}
+
+.metrics-comparison-table td {
+    padding: var(--spacing-md);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.metrics-comparison-table td:first-child {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.metrics-comparison-table .metric-value-cell {
+    text-align: center;
+    font-family: 'Courier New', monospace;
+    color: var(--text-secondary);
+}
+
+.metrics-comparison-table .best-metric {
+    color: var(--success-color);
+    font-weight: 700;
+}
+
+.loading-cell {
+    text-align: center;
+    padding: var(--spacing-xl);
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.metrics-chart-container {
+    margin-top: var(--spacing-xl);
+    height: 300px;
+    position: relative;
+}
+
+>>>>>>> ea08e74f096fe53284d3ab221b4cd1688a279e9b
 /* Feature Importance */
 .feature-list {
     display: flex;

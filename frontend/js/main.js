@@ -6,6 +6,10 @@ class ExoPlanetApp {
         this.selectedTelescope = 'kepler';
         this.uploadedFile = null;
         this.apiBaseUrl = 'http://localhost:8000'; // FastAPI backend URL
+<<<<<<< HEAD
+=======
+        this.currentMetrics = null;
+>>>>>>> ea08e74f096fe53284d3ab221b4cd1688a279e9b
         
         this.init();
     }
@@ -13,11 +17,23 @@ class ExoPlanetApp {
     init() {
         this.setupNavigation();
         this.setupTelescopeSelection();
+<<<<<<< HEAD
         this.setupScrollAnimations();
         this.setupParticleEffects();
         this.loadModelMetrics();
         this.loadRecentDiscoveries();
         this.setupCounterAnimations();
+=======
+        this.setupSatelliteSelector();
+        this.setupScrollAnimations();
+        this.setupParticleEffects();
+        this.loadDashboardStats();
+        this.loadModelMetrics();
+        this.loadRecentDiscoveries();
+        this.setupCounterAnimations();
+        // Initialize with Kepler data
+        this.showTelescopeInfo('kepler');
+>>>>>>> ea08e74f096fe53284d3ab221b4cd1688a279e9b
     }
 
     // Navigation Management
@@ -108,6 +124,14 @@ class ExoPlanetApp {
                 
                 // Show telescope-specific information
                 this.showTelescopeInfo(this.selectedTelescope);
+<<<<<<< HEAD
+=======
+                
+                // Update about section stats
+                if (this.dashboardStats) {
+                    this.updateAboutSectionStats(this.dashboardStats);
+                }
+>>>>>>> ea08e74f096fe53284d3ab221b4cd1688a279e9b
             });
         });
 
@@ -118,6 +142,7 @@ class ExoPlanetApp {
         }
     }
 
+<<<<<<< HEAD
     showTelescopeInfo(telescope) {
         // Update hero stats based on telescope selection
         const statCards = document.querySelectorAll('.stat-card');
@@ -144,6 +169,34 @@ class ExoPlanetApp {
                     features: 'TBD'
                 });
                 break;
+=======
+    async showTelescopeInfo(telescope) {
+        // Fetch actual telescope data from the backend
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/api/telescope/${telescope}`);
+            const data = await response.json();
+            
+            const statCards = document.querySelectorAll('.stat-card');
+            this.updateStats(statCards, {
+                accuracy: data.model_accuracy || 'N/A',
+                samples: data.training_samples || 'N/A',
+                features: data.features || 'N/A',
+                telescope: data.name || telescope
+            });
+        } catch (error) {
+            console.error('Error loading telescope info:', error);
+            // Fallback to dashboard stats if available
+            if (this.dashboardStats && this.dashboardStats[telescope]) {
+                const stats = this.dashboardStats[telescope];
+                const statCards = document.querySelectorAll('.stat-card');
+                this.updateStats(statCards, {
+                    accuracy: stats.accuracy,
+                    samples: stats.training_samples,
+                    features: stats.features,
+                    telescope: telescope.toUpperCase()
+                });
+            }
+>>>>>>> ea08e74f096fe53284d3ab221b4cd1688a279e9b
         }
     }
 
@@ -152,6 +205,138 @@ class ExoPlanetApp {
             statCards[0].querySelector('.stat-number').textContent = stats.accuracy;
             statCards[1].querySelector('.stat-number').textContent = stats.samples;
             statCards[2].querySelector('.stat-number').textContent = stats.features;
+<<<<<<< HEAD
+=======
+            
+            // Update telescope trend text
+            const telescopeTrend = document.getElementById('telescopeTrend');
+            if (telescopeTrend && stats.telescope) {
+                telescopeTrend.textContent = stats.telescope;
+            }
+        }
+    }
+
+    // Satellite Selector for Analytics Section
+    setupSatelliteSelector() {
+        const satelliteBtns = document.querySelectorAll('.satellite-btn');
+        
+        satelliteBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                // Remove active class from all buttons
+                satelliteBtns.forEach(b => b.classList.remove('active'));
+                
+                // Add active class to clicked button
+                btn.classList.add('active');
+                
+                // Update selected telescope
+                const telescope = btn.dataset.satellite;
+                this.selectedTelescope = telescope;
+                
+                // Reload metrics and charts for the selected telescope
+                this.loadModelMetrics(telescope);
+                this.updateChartsForTelescope(telescope);
+                
+                // Update about section stats if available
+                if (this.dashboardStats) {
+                    this.updateAboutSectionStats(this.dashboardStats);
+                }
+            });
+        });
+        
+        // Also update satellite status cards on initial load
+        const statusCards = document.querySelectorAll('.satellite-status-card');
+        statusCards.forEach(card => {
+            card.addEventListener('click', () => {
+                // Remove active class from all cards
+                statusCards.forEach(c => c.classList.remove('active'));
+                
+                // Add active class to clicked card
+                card.classList.add('active');
+                
+                // Determine which telescope based on card position
+                const cardIndex = Array.from(statusCards).indexOf(card);
+                const telescope = cardIndex === 0 ? 'kepler' : 'tess';
+                this.selectedTelescope = telescope;
+                
+                // Update stats for the selected telescope
+                if (this.dashboardStats) {
+                    this.updateAboutSectionStats(this.dashboardStats);
+                }
+            });
+        });
+    }
+
+    async updateChartsForTelescope(telescope) {
+        try {
+            // Fetch analytics data for the selected telescope
+            const response = await fetch(`${this.apiBaseUrl}/api/analytics?telescope=${telescope}`);
+            const data = await response.json();
+            
+            // Update charts with new data
+            if (window.chartManager) {
+                window.chartManager.updateChartsWithData(data);
+                
+                // Recreate feature importance chart with telescope-specific data
+                await window.chartManager.createFeatureImportanceChart(telescope);
+                
+                // Load confusion matrix image for this telescope
+                await window.chartManager.loadConfusionMatrixImage(telescope);
+            }
+            
+            // Update confusion matrix
+            this.updateConfusionMatrix(data);
+            
+        } catch (error) {
+            console.error('Error updating charts:', error);
+        }
+    }
+
+    updateConfusionMatrix(data) {
+        try {
+            if (!data.test_results || !data.test_results.metrics || 
+                !data.test_results.metrics['Logistic Regression']) {
+                return;
+            }
+            
+            const matrix = data.test_results.metrics['Logistic Regression'].confusion_matrix;
+            
+            if (!matrix) return;
+            
+            // Calculate all values first
+            const tn = matrix['Pred 0']['True 0'];
+            const fp = matrix['Pred 1']['True 0'];
+            const fn = matrix['Pred 0']['True 1'];
+            const tp = matrix['Pred 1']['True 1'];
+            const total = tn + fp + fn + tp;
+            
+            // Update confusion matrix values
+            const matrixRows = document.querySelectorAll('.confusion-matrix .matrix-row');
+            if (matrixRows.length >= 3) {
+                // Row 1: True 0
+                const row1 = matrixRows[1];
+                const row1Cells = row1.querySelectorAll('.matrix-cell:not(.header)');
+                if (row1Cells.length >= 2 && row1Cells[0].querySelector('.matrix-value') && 
+                    row1Cells[0].querySelector('.matrix-percentage')) {
+                    row1Cells[0].querySelector('.matrix-value').textContent = tn;
+                    row1Cells[0].querySelector('.matrix-percentage').textContent = `(${((tn/total)*100).toFixed(1)}%)`;
+                    row1Cells[1].querySelector('.matrix-value').textContent = fp;
+                    row1Cells[1].querySelector('.matrix-percentage').textContent = `(${((fp/total)*100).toFixed(1)}%)`;
+                }
+                
+                // Row 2: True 1
+                const row2 = matrixRows[2];
+                const row2Cells = row2.querySelectorAll('.matrix-cell:not(.header)');
+                if (row2Cells.length >= 2 && row2Cells[0].querySelector('.matrix-value') && 
+                    row2Cells[0].querySelector('.matrix-percentage')) {
+                    row2Cells[0].querySelector('.matrix-value').textContent = fn;
+                    row2Cells[0].querySelector('.matrix-percentage').textContent = `(${((fn/total)*100).toFixed(1)}%)`;
+                    row2Cells[1].querySelector('.matrix-value').textContent = tp;
+                    row2Cells[1].querySelector('.matrix-percentage').textContent = `(${((tp/total)*100).toFixed(1)}%)`;
+                }
+            }
+        } catch (error) {
+            console.error('Error updating confusion matrix:', error);
+>>>>>>> ea08e74f096fe53284d3ab221b4cd1688a279e9b
         }
     }
 
@@ -205,11 +390,125 @@ class ExoPlanetApp {
         container.appendChild(particle);
     }
 
+<<<<<<< HEAD
     // Load Model Metrics
     async loadModelMetrics() {
         try {
             // In a real implementation, this would fetch from your FastAPI backend
             // For now, we'll use the static data from the JSON files
+=======
+    // Load Dashboard Statistics
+    async loadDashboardStats() {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/api/dashboard/stats`);
+            const stats = await response.json();
+            
+            this.dashboardStats = stats;
+            
+            // Update satellite status cards
+            this.updateSatelliteStatusCards(stats);
+            
+            // Update about section statistics
+            this.updateAboutSectionStats(stats);
+            
+        } catch (error) {
+            console.error('Error loading dashboard stats:', error);
+        }
+    }
+
+    updateSatelliteStatusCards(stats) {
+        // Update Kepler card
+        const keplerCard = document.querySelector('.satellite-status-card:nth-child(1)');
+        if (keplerCard && stats.kepler) {
+            const statusBadge = keplerCard.querySelector('.status-badge');
+            if (statusBadge) {
+                statusBadge.textContent = `${stats.kepler.accuracy}% Accuracy`;
+                statusBadge.className = stats.kepler.status === 'ready' ? 'status-badge ready' : 'status-badge not-ready';
+            }
+        }
+        
+        // Update TESS card
+        const tessCard = document.querySelector('.satellite-status-card:nth-child(2)');
+        if (tessCard && stats.tess) {
+            const statusBadge = tessCard.querySelector('.status-badge');
+            if (statusBadge) {
+                statusBadge.textContent = `${stats.tess.accuracy}% Accuracy`;
+                statusBadge.className = stats.tess.status === 'ready' ? 'status-badge ready' : 'status-badge not-ready';
+            }
+        }
+    }
+
+    updateAboutSectionStats(stats) {
+        // Get the currently selected telescope (default to Kepler)
+        const selectedTelescope = this.selectedTelescope || 'kepler';
+        const telescopeStats = stats[selectedTelescope];
+        
+        if (!telescopeStats) return;
+        
+        // Update stat items in the about section
+        const statItems = document.querySelectorAll('#about .stat-item');
+        
+        if (statItems.length >= 4) {
+            // Update Prediction Accuracy (first stat item)
+            const accuracyNumber = statItems[0].querySelector('.stat-number');
+            if (accuracyNumber) {
+                // Add % if not already present
+                const accuracy = telescopeStats.accuracy;
+                accuracyNumber.textContent = accuracy.toString().includes('%') ? accuracy : `${accuracy}%`;
+            }
+            
+            // Update Samples Trained (second stat item)
+            const samplesNumber = statItems[1].querySelector('.stat-number');
+            if (samplesNumber) {
+                const samples = telescopeStats.training_samples;
+                samplesNumber.textContent = !isNaN(samples) ? parseInt(samples).toLocaleString() : samples;
+            }
+            
+            // Update Test Samples (third stat item)
+            const testSamplesNumber = statItems[2].querySelector('.stat-number');
+            if (testSamplesNumber) {
+                const testSamples = telescopeStats.test_samples;
+                testSamplesNumber.textContent = !isNaN(testSamples) ? parseInt(testSamples).toLocaleString() : testSamples;
+            }
+            
+            // Update Features Analyzed (fourth stat item)
+            const featuresNumber = statItems[3].querySelector('.stat-number');
+            if (featuresNumber) {
+                featuresNumber.textContent = telescopeStats.features;
+            }
+        }
+    }
+
+    // Load Model Metrics
+    async loadModelMetrics(telescope = 'kepler') {
+        try {
+            // Fetch metrics from the FastAPI backend
+            const response = await fetch(`${this.apiBaseUrl}/api/metrics?telescope=${telescope}`);
+            const data = await response.json();
+            
+            this.currentMetrics = data;
+            
+            // Extract metrics from the response
+            if (data.metrics && data.metrics.comparison_metrics && 
+                data.metrics.comparison_metrics.values && 
+                data.metrics.comparison_metrics.values.length > 0) {
+                
+                const values = data.metrics.comparison_metrics.values[0];
+                const metrics = {
+                    accuracy: values[1] * 100,
+                    precision: values[2] * 100,
+                    recall: values[3] * 100,
+                    f1Score: values[4] * 100,
+                    rocAuc: values[5] * 100,
+                    prAuc: values[6] * 100
+                };
+
+                this.animateMetrics(metrics);
+            }
+        } catch (error) {
+            console.error('Error loading model metrics:', error);
+            // Fallback to default metrics
+>>>>>>> ea08e74f096fe53284d3ab221b4cd1688a279e9b
             const metrics = {
                 accuracy: 86.25,
                 precision: 86.50,
@@ -218,10 +517,14 @@ class ExoPlanetApp {
                 rocAuc: 93.59,
                 prAuc: 93.25
             };
+<<<<<<< HEAD
 
             this.animateMetrics(metrics);
         } catch (error) {
             console.error('Error loading model metrics:', error);
+=======
+            this.animateMetrics(metrics);
+>>>>>>> ea08e74f096fe53284d3ab221b4cd1688a279e9b
         }
     }
 

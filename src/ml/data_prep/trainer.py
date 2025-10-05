@@ -1,4 +1,4 @@
-from src.ml.data_prep.preprocessing import DataPreprocessor
+from src.ml.data_prep.preprocessing import DataPreprocessor, DATATYPE
 from src.ml.data_prep.models import ModelOptimizer
 from src.ml import logger
 import pandas as pd
@@ -13,7 +13,9 @@ class Trainer:
     def trigger_training(
             self,
             filename: str,
+            data_dir: str,
             model_save_dir: str = None,
+            datatype: DATATYPE = DATATYPE.KEPLER,
             cv: int = 5,
             n_iter: int = 50,
             scoring: str = 'accuracy',
@@ -23,7 +25,7 @@ class Trainer:
         logger.info(f"Starting training process with file: {filename}")
         
         logger.info("Initializing data preprocessor")
-        preprocessor = DataPreprocessor()
+        preprocessor = DataPreprocessor(datatype=datatype, data_dir=data_dir)
         
         logger.info("Running preprocessing pipeline")
         X_train, X_test, y_train, y_test = preprocessor.preprocessing_pipeline(

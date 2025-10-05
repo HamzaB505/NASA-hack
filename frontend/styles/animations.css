@@ -28,7 +28,11 @@
         transform: scale(1);
     }
     50% {
+<<<<<<< HEAD
         filter: drop-shadow(0 0 15px rgba(0, 212, 255, 0.8));
+=======
+        filter: drop-shadow(0 0 15px rgba(54, 170, 193, 0.8));
+>>>>>>> ea08e74f096fe53284d3ab221b4cd1688a279e9b
         transform: scale(1.05);
     }
 }

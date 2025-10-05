@@ -1,4 +1,4 @@
-"""
+s"""
 FastAPI Backend for ExoPlanet AI
 Handles file uploads, predictions, and model serving
 """
@@ -6,27 +6,15 @@ Handles file uploads, predictions, and model serving
 from fastapi import FastAPI, File, UploadFile, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-<<<<<<< HEAD
-from fastapi.responses import JSONResponse, FileResponse
-=======
 from fastapi.responses import FileResponse
->>>>>>> ea08e74f096fe53284d3ab221b4cd1688a279e9b
 import pandas as pd
 import numpy as np
 import pickle
 import json
-<<<<<<< HEAD
-import os
-import logging
-import io
-from pathlib import Path
-from typing import Optional, Dict, Any
-=======
 import logging
 import io
 from pathlib import Path
 from typing import Dict, Any
->>>>>>> ea08e74f096fe53284d3ab221b4cd1688a279e9b
 import uvicorn
 
 # Configure logging
@@ -50,21 +38,14 @@ app.add_middleware(
 )
 
 # Serve static files (frontend)
-<<<<<<< HEAD
-app.mount("/static", StaticFiles(directory="../frontend"), name="static")
-
-# Global variables for model storage
-MODELS_DIR = Path("../2025.10.05_10.36.41")
-MODEL_CACHE = {}
-METRICS_CACHE = {}
-=======
 # Mount individual directories at root level for direct access
-app.mount("/styles", StaticFiles(directory="./frontend/styles"), name="styles")
-app.mount("/js", StaticFiles(directory="./frontend/js"), name="js")
-app.mount("/static", StaticFiles(directory="./frontend"), name="static")
+FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
+app.mount("/styles", StaticFiles(directory=str(FRONTEND_DIR / "styles")), name="styles")
+app.mount("/js", StaticFiles(directory=str(FRONTEND_DIR / "js")), name="js")
+app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
 
 # Global variables for model storage
-MODELS_DIR = Path("./models/2025.10.05_15.15.52")
+MODELS_DIR = Path("/Users/hamzaboulaala/Documents/github/NASA-hack/models/2025.10.05_16.07.33")
 MODEL_CACHE = {}
 METRICS_CACHE = {
     'KEPLER': {},
@@ -72,9 +53,9 @@ METRICS_CACHE = {
 }
 
 # Mount the models directory to serve static files like confusion matrix images
-app.mount("/models", StaticFiles(directory="./models"), name="models")
+MODELS_ROOT = Path(__file__).parent.parent / "models"
+app.mount("/models", StaticFiles(directory=str(MODELS_ROOT)), name="models")
 
->>>>>>> ea08e74f096fe53284d3ab221b4cd1688a279e9b
 
 class ExoPlanetPredictor:
     """Main prediction class for exoplanet detection"""
@@ -85,74 +66,44 @@ class ExoPlanetPredictor:
         self.load_metrics()
     
     def load_models(self):
-<<<<<<< HEAD
-        """Load trained models from disk"""
-        try:
-            model_files = list(self.models_dir.glob("*_model.pkl"))
-            
-            for model_file in model_files:
-                model_name = model_file.stem.replace("_model", "").replace("_", " ").title()
-                
-                with open(model_file, 'rb') as f:
-                    model_data = pickle.load(f)
-                    MODEL_CACHE[model_name.lower()] = model_data
-                    
-                logger.info(f"Loaded model: {model_name}")
-=======
         """Load trained models from both KEPLER and TESS folders"""
         try:
+            # List of available models
+            model_names = ['XGBoost', 'Gradient_Boosting', 'Random_Forest', 'Decision_Tree', 'Logistic_Regression']
+            
             for telescope in ['KEPLER', 'TESS']:
                 telescope_dir = self.models_dir / telescope
                 if not telescope_dir.exists():
                     logger.warning(f"Directory not found: {telescope_dir}")
                     continue
                 
-                model_files = list(telescope_dir.glob("*_model.pkl"))
+                logger.info(f"Loading models from: {telescope_dir}")
                 
-                for model_file in model_files:
-                    model_name = model_file.stem.replace("_model", "").replace("_", " ").title()
-                    cache_key = f"{telescope.lower()}_{model_name.lower()}"
+                for model_name in model_names:
+                    model_file = telescope_dir / f"{model_name}_model.pkl"
                     
-                    with open(model_file, 'rb') as f:
-                        model_data = pickle.load(f)
-                        MODEL_CACHE[cache_key] = model_data
-                        
-                    logger.info(f"Loaded model: {telescope} - {model_name}")
->>>>>>> ea08e74f096fe53284d3ab221b4cd1688a279e9b
+                    if model_file.exists():
+                        try:
+                            with open(model_file, 'rb') as f:
+                                model_data = pickle.load(f)
+                                
+                            # Create cache key: lowercase telescope + lowercase model with underscores
+                            cache_key = f"{telescope.lower()}_{model_name.lower()}"
+                            MODEL_CACHE[cache_key] = model_data
+                            
+                            logger.info(f"✓ Loaded: {telescope}/{model_name} → cache_key: {cache_key}")
+                        except Exception as e:
+                            logger.error(f"✗ Failed to load {telescope}/{model_name}: {e}")
+                    else:
+                        logger.warning(f"✗ Model file not found: {model_file}")
+            
+            logger.info(f"Total models loaded: {len(MODEL_CACHE)}")
+            logger.info(f"Available model keys: {list(MODEL_CACHE.keys())}")
                 
         except Exception as e:
             logger.error(f"Error loading models: {e}")
     
     def load_metrics(self):
-<<<<<<< HEAD
-        """Load model metrics and results"""
-        try:
-            # Load comparison metrics
-            metrics_file = self.models_dir / "Logistic_Regression_comparison_metrics.json"
-            if metrics_file.exists():
-                with open(metrics_file, 'r') as f:
-                    METRICS_CACHE['comparison_metrics'] = json.load(f)
-            
-            # Load feature importance
-            importance_file = self.models_dir / "Logistic_Regression_feature_importance.json"
-            if importance_file.exists():
-                with open(importance_file, 'r') as f:
-                    METRICS_CACHE['feature_importance'] = json.load(f)
-            
-            # Load test results
-            results_file = self.models_dir / "test_results_2025.10.05_10.36.41.json"
-            if results_file.exists():
-                with open(results_file, 'r') as f:
-                    METRICS_CACHE['test_results'] = json.load(f)
-            
-            # Load experiment config
-            config_file = self.models_dir / "experiment_config.json"
-            if config_file.exists():
-                with open(config_file, 'r') as f:
-                    METRICS_CACHE['experiment_config'] = json.load(f)
-                    
-            logger.info("Loaded model metrics and configuration")
-=======
         """Load model metrics and results for both telescopes"""
         try:
             for telescope in ['KEPLER', 'TESS']:
@@ -161,28 +112,20 @@ class ExoPlanetPredictor:
                     logger.warning(f"Directory not found: {telescope_dir}")
                     continue
                 
-                # Load comparison metrics
-                metrics_file = telescope_dir / "Logistic_Regression_comparison_metrics.json"
-                if metrics_file.exists():
+                # Load all model comparison metrics
+                model_files = list(telescope_dir.glob("*_comparison_metrics.json"))
+                METRICS_CACHE[telescope]['model_metrics'] = {}
+                
+                for metrics_file in model_files:
+                    model_name = metrics_file.stem.replace("_comparison_metrics", "")
                     with open(metrics_file, 'r') as f:
-                        METRICS_CACHE[telescope]['comparison_metrics'] = json.load(f)
+                        METRICS_CACHE[telescope]['model_metrics'][model_name] = json.load(f)
+                    logger.info(f"Loaded comparison metrics for {telescope} - {model_name}")
                 
-                # Load selected features (if exists)
-                features_file = telescope_dir / "Logistic_Regression_selected_features.json"
-                if features_file.exists():
-                    with open(features_file, 'r') as f:
-                        METRICS_CACHE[telescope]['selected_features'] = json.load(f)
-                
-                # Load original features (if exists for TESS)
-                orig_features_file = telescope_dir / "Logistic_Regression_original_features.json"
-                if orig_features_file.exists():
-                    with open(orig_features_file, 'r') as f:
-                        METRICS_CACHE[telescope]['original_features'] = json.load(f)
-                
-                # Load test results
-                results_file = telescope_dir / "test_results_2025.10.05_15.15.52.json"
-                if results_file.exists():
-                    with open(results_file, 'r') as f:
+                # Load test results with all models
+                test_results_files = list(telescope_dir.glob("test_results_*.json"))
+                if test_results_files:
+                    with open(test_results_files[0], 'r') as f:
                         METRICS_CACHE[telescope]['test_results'] = json.load(f)
                 
                 # Load experiment config
@@ -191,34 +134,53 @@ class ExoPlanetPredictor:
                     with open(config_file, 'r') as f:
                         METRICS_CACHE[telescope]['experiment_config'] = json.load(f)
                 
-                # Load CV results
-                cv_file = telescope_dir / "Logistic_Regression_cv_results.json"
-                if cv_file.exists():
+                # Load CV results for all models
+                cv_files = list(telescope_dir.glob("*_cv_results.json"))
+                METRICS_CACHE[telescope]['cv_results'] = {}
+                
+                for cv_file in cv_files:
+                    model_name = cv_file.stem.replace("_cv_results", "")
                     with open(cv_file, 'r') as f:
-                        METRICS_CACHE[telescope]['cv_results'] = json.load(f)
+                        METRICS_CACHE[telescope]['cv_results'][model_name] = json.load(f)
                         
                 logger.info(f"Loaded metrics for {telescope}")
->>>>>>> ea08e74f096fe53284d3ab221b4cd1688a279e9b
             
         except Exception as e:
             logger.error(f"Error loading metrics: {e}")
     
-    def preprocess_data(self, df: pd.DataFrame) -> pd.DataFrame:
+    def preprocess_data(self, df: pd.DataFrame, trained_pipeline=None) -> pd.DataFrame:
         """Preprocess uploaded data to match training format"""
         try:
-            # Basic preprocessing - in a real implementation, this would be more comprehensive
-            # For now, we'll handle missing values and ensure proper data types
+            # Remove non-feature columns that are typically present in raw data
+            columns_to_drop = [
+                'rowid', 'kepid', 'kepoi_name', 'kepler_name', 
+                'koi_disposition', 'koi_pdisposition', 'koi_vet_stat', 
+                'koi_vet_date', 'koi_comment', 'koi_disp_prov',
+                'koi_tce_delivname', 'koi_datalink_dvr', 'koi_datalink_dvs',
+                'koi_parm_prov', 'koi_sparprov', 'koi_limbdark_mod', 'koi_trans_mod',
+                'koi_fittype'
+            ]
+            df = df.drop(columns=[col for col in columns_to_drop if col in df.columns], errors='ignore')
             
-            # Handle missing values
-            df = df.fillna(df.median())
-            
-            # Ensure numeric columns are properly typed
-            numeric_columns = df.select_dtypes(include=[np.number]).columns
-            df[numeric_columns] = df[numeric_columns].astype(float)
-            
-            # Remove any non-numeric columns that might cause issues
+            # Select only numeric columns
             df = df.select_dtypes(include=[np.number])
             
+            # Ensure proper data types
+            df = df.astype(float)
+            
+            # If pipeline is provided, try to get expected features
+            if trained_pipeline and hasattr(trained_pipeline, 'feature_names_in_'):
+                expected_features = trained_pipeline.feature_names_in_
+                # Add missing features with zeros
+                for feature in expected_features:
+                    if feature not in df.columns:
+                        df[feature] = np.nan
+                # Keep only expected features in the right order
+                df = df[expected_features]
+                # Ensure all columns are float after feature alignment
+                df = df.astype(float)
+            
+            logger.info(f"Preprocessed data shape: {df.shape}, columns: {len(df.columns)}")
             return df
             
         except Exception as e:
@@ -228,19 +190,21 @@ class ExoPlanetPredictor:
     def predict(self, data: pd.DataFrame, telescope: str, model_type: str) -> Dict[str, Any]:
         """Make prediction on uploaded data"""
         try:
-<<<<<<< HEAD
-            # Get the appropriate model
-            model_key = model_type.lower().replace(" ", "_")
+            # Normalize model name: replace spaces with underscores and convert to lowercase
+            # This handles inputs like "XGBoost", "Gradient Boosting", "gradient_boosting", "xgboost"
+            normalized_model = model_type.lower().replace(' ', '_')
+            model_key = f"{telescope.lower()}_{normalized_model}"
+            
+            logger.info(f"Looking for model: {model_key}")
+            logger.info(f"Available models: {list(MODEL_CACHE.keys())}")
             
             if model_key not in MODEL_CACHE:
-                raise HTTPException(status_code=400, detail=f"Model {model_type} not available")
-=======
-            # Get the appropriate model based on telescope and model type
-            model_key = f"{telescope.lower()}_{model_type.lower().replace(' ', '_')}"
-            
-            if model_key not in MODEL_CACHE:
-                raise HTTPException(status_code=400, detail=f"Model {model_type} for {telescope} not available")
->>>>>>> ea08e74f096fe53284d3ab221b4cd1688a279e9b
+                available_models = [k for k in MODEL_CACHE.keys() if k.startswith(telescope.lower())]
+                logger.error(f"Model key '{model_key}' not found. Available models: {available_models}")
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Model {model_type} for {telescope} not available. Available: {available_models}"
+                )
             
             model_data = MODEL_CACHE[model_key]
             trained_pipeline = model_data.get("trained_pipeline")
@@ -248,8 +212,10 @@ class ExoPlanetPredictor:
             if trained_pipeline is None:
                 raise HTTPException(status_code=500, detail="Model pipeline not found")
             
-            # Preprocess the data
-            processed_data = self.preprocess_data(data)
+            # Preprocess the data with pipeline feature alignment
+            processed_data = self.preprocess_data(data, trained_pipeline)
+            
+            logger.info(f"Making prediction with {model_key} on {len(processed_data)} samples")
             
             # Make predictions
             predictions = trained_pipeline.predict(processed_data)
@@ -344,19 +310,16 @@ predictor = ExoPlanetPredictor()
 @app.get("/")
 async def root():
     """Root endpoint - serve the frontend"""
-<<<<<<< HEAD
-    return FileResponse("../frontend/index.html")
-=======
-    return FileResponse("./frontend/index.html")
+    return FileResponse(str(FRONTEND_DIR / "index.html"))
+
 
 @app.get("/demo_data.json")
 async def get_demo_data():
     """Serve demo data for the frontend"""
-    demo_file = Path("./frontend/demo_data.json")
+    demo_file = FRONTEND_DIR / "demo_data.json"
     if not demo_file.exists():
         raise HTTPException(status_code=404, detail="Demo data not found")
     return FileResponse(str(demo_file))
->>>>>>> ea08e74f096fe53284d3ab221b4cd1688a279e9b
 
 @app.get("/health")
 async def health_check():
@@ -366,17 +329,48 @@ async def health_check():
 @app.get("/api/models")
 async def get_available_models():
     """Get list of available models"""
+    # Group models by telescope
+    kepler_models = []
+    tess_models = []
+    
+    for key in MODEL_CACHE.keys():
+        # key format is "telescope_model_name", e.g., "kepler_xgboost", "kepler_gradient_boosting"
+        parts = key.split('_', 1)
+        if len(parts) > 1:
+            telescope = parts[0]
+            model_name_key = parts[1]  # e.g., "xgboost", "gradient_boosting"
+            
+            # Convert to display name (keep underscores, just capitalize)
+            # "xgboost" -> "XGBoost", "gradient_boosting" -> "Gradient_Boosting"
+            if model_name_key == 'xgboost':
+                display_name = 'XGBoost'
+            elif model_name_key == 'gradient_boosting':
+                display_name = 'Gradient_Boosting'
+            elif model_name_key == 'random_forest':
+                display_name = 'Random_Forest'
+            elif model_name_key == 'decision_tree':
+                display_name = 'Decision_Tree'
+            elif model_name_key == 'logistic_regression':
+                display_name = 'Logistic_Regression'
+            else:
+                display_name = model_name_key.replace('_', ' ').title()
+            
+            if telescope == 'kepler':
+                kepler_models.append(display_name)
+            elif telescope == 'tess':
+                tess_models.append(display_name)
+    
     return {
         "models": list(MODEL_CACHE.keys()),
-        "telescopes": ["kepler", "tess", "k2"],
-        "default_model": "logistic regression"
+        "kepler_models": sorted(kepler_models),
+        "tess_models": sorted(tess_models),
+        "telescopes": ["kepler", "tess"],
+        "default_model": "XGBoost",
+        "default_telescope": "kepler",
+        "total_models": len(MODEL_CACHE)
     }
 
 @app.get("/api/metrics")
-<<<<<<< HEAD
-async def get_model_metrics():
-    """Get model performance metrics"""
-=======
 async def get_model_metrics(telescope: str = "KEPLER"):
     """Get model performance metrics for a specific telescope"""
     telescope_upper = telescope.upper()
@@ -390,52 +384,62 @@ async def get_model_metrics(telescope: str = "KEPLER"):
 @app.get("/api/metrics/all")
 async def get_all_metrics():
     """Get model performance metrics for all telescopes"""
->>>>>>> ea08e74f096fe53284d3ab221b4cd1688a279e9b
     return METRICS_CACHE
 
 @app.post("/api/predict")
 async def predict_exoplanet(
     file: UploadFile = File(...),
-    telescope: str = Form(...),
-    model: str = Form(...)
+    telescope: str = Form(default="kepler"),
+    model: str = Form(default="XGBoost")
 ):
     """Predict exoplanet from uploaded data"""
     try:
+        logger.info(f"Received prediction request: file={file.filename}, telescope={telescope}, model={model}")
+        
         # Validate file type
         if not file.filename.lower().endswith(('.csv', '.json', '.xlsx', '.xls')):
-            raise HTTPException(status_code=400, detail="Unsupported file type")
+            raise HTTPException(status_code=400, detail="Unsupported file type. Please upload CSV, JSON, XLSX, or XLS file.")
         
         # Read the uploaded file
         content = await file.read()
         
+        if len(content) == 0:
+            raise HTTPException(status_code=400, detail="Empty file uploaded")
+        
         # Parse based on file type
-        if file.filename.lower().endswith('.csv'):
-            df = pd.read_csv(io.BytesIO(content))
-        elif file.filename.lower().endswith('.json'):
-            df = pd.read_json(io.BytesIO(content))
-        elif file.filename.lower().endswith(('.xlsx', '.xls')):
-            df = pd.read_excel(io.BytesIO(content))
-        else:
-            raise HTTPException(status_code=400, detail="Unsupported file format")
+        try:
+            if file.filename.lower().endswith('.csv'):
+                df = pd.read_csv(io.BytesIO(content))
+            elif file.filename.lower().endswith('.json'):
+                df = pd.read_json(io.BytesIO(content))
+            elif file.filename.lower().endswith(('.xlsx', '.xls')):
+                df = pd.read_excel(io.BytesIO(content))
+            else:
+                raise HTTPException(status_code=400, detail="Unsupported file format")
+        except Exception as parse_error:
+            logger.error(f"File parsing error: {parse_error}")
+            raise HTTPException(status_code=400, detail=f"Failed to parse file: {str(parse_error)}")
         
         # Validate data
         if df.empty:
-            raise HTTPException(status_code=400, detail="Empty dataset")
+            raise HTTPException(status_code=400, detail="Empty dataset - no rows found in file")
         
-        if len(df.columns) < 10:
-            raise HTTPException(status_code=400, detail="Insufficient features for prediction")
+        if len(df.columns) < 5:
+            raise HTTPException(status_code=400, detail=f"Insufficient features for prediction. Found {len(df.columns)} columns, need at least 5.")
+        
+        logger.info(f"Loaded data: {df.shape[0]} rows, {df.shape[1]} columns")
         
         # Make prediction
         result = predictor.predict(df, telescope, model)
         
-        logger.info(f"Prediction completed for {file.filename}: {result['prediction']}")
+        logger.info(f"Prediction completed for {file.filename}: {result['prediction']} with {result['confidence']:.2%} confidence")
         
         return result
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Prediction error: {e}")
+        logger.error(f"Prediction error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @app.post("/api/predict-form")
@@ -468,51 +472,48 @@ async def predict_exoplanet_from_form(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @app.get("/api/analytics")
-<<<<<<< HEAD
-async def get_analytics():
-    """Get detailed analytics data"""
-    try:
-        analytics_data = {
-            "performance_metrics": METRICS_CACHE.get('comparison_metrics', {}),
-            "feature_importance": METRICS_CACHE.get('feature_importance', {}),
-            "test_results": METRICS_CACHE.get('test_results', {}),
-            "experiment_config": METRICS_CACHE.get('experiment_config', {})
-=======
-async def get_analytics(telescope: str = "KEPLER"):
-    """Get detailed analytics data for a specific telescope"""
+async def get_analytics(telescope: str = "KEPLER", model: str = None):
+    """Get detailed analytics data for a specific telescope and optionally a specific model"""
     try:
         telescope_upper = telescope.upper()
         if telescope_upper not in METRICS_CACHE:
             raise HTTPException(status_code=404, detail=f"Analytics for {telescope} not found")
         
         telescope_data = METRICS_CACHE[telescope_upper]
-        analytics_data = {
-            "telescope": telescope_upper,
-            "performance_metrics": telescope_data.get('comparison_metrics', {}),
-            "selected_features": telescope_data.get('selected_features', {}),
-            "original_features": telescope_data.get('original_features', {}),
-            "test_results": telescope_data.get('test_results', {}),
-            "experiment_config": telescope_data.get('experiment_config', {}),
-            "cv_results": telescope_data.get('cv_results', {})
->>>>>>> ea08e74f096fe53284d3ab221b4cd1688a279e9b
-        }
+        
+        # If a specific model is requested
+        if model:
+            model_name = model.replace(" ", "_")
+            model_metrics = telescope_data.get('model_metrics', {}).get(model_name, {})
+            cv_results = telescope_data.get('cv_results', {}).get(model_name, {})
+            
+            analytics_data = {
+                "telescope": telescope_upper,
+                "model": model,
+                "performance_metrics": model_metrics,
+                "cv_results": cv_results,
+                "experiment_config": telescope_data.get('experiment_config', {})
+            }
+        else:
+            # Return all models data
+            analytics_data = {
+                "telescope": telescope_upper,
+                "model_metrics": telescope_data.get('model_metrics', {}),
+                "test_results": telescope_data.get('test_results', {}),
+                "experiment_config": telescope_data.get('experiment_config', {}),
+                "cv_results": telescope_data.get('cv_results', {})
+            }
         
         return analytics_data
         
-<<<<<<< HEAD
-=======
     except HTTPException:
         raise
->>>>>>> ea08e74f096fe53284d3ab221b4cd1688a279e9b
     except Exception as e:
         logger.error(f"Error getting analytics: {e}")
         raise HTTPException(status_code=500, detail="Failed to retrieve analytics data")
 
 @app.get("/api/telescope/{telescope_name}")
 async def get_telescope_info(telescope_name: str):
-<<<<<<< HEAD
-    """Get information about a specific telescope"""
-=======
     """Get information about a specific telescope with actual model metrics"""
     # Get actual metrics if available
     kepler_accuracy = "N/A"
@@ -522,27 +523,34 @@ async def get_telescope_info(telescope_name: str):
     kepler_features = "N/A"
     tess_features = "N/A"
     
-    if 'KEPLER' in METRICS_CACHE and 'comparison_metrics' in METRICS_CACHE['KEPLER']:
-        kepler_metrics = METRICS_CACHE['KEPLER']['comparison_metrics']
-        if 'values' in kepler_metrics and len(kepler_metrics['values']) > 0:
-            kepler_accuracy = f"{kepler_metrics['values'][0][1] * 100:.2f}"
+    # Get best model accuracy for KEPLER (using XGBoost which has highest accuracy)
+    if 'KEPLER' in METRICS_CACHE and 'test_results' in METRICS_CACHE['KEPLER']:
+        test_results = METRICS_CACHE['KEPLER']['test_results']
+        if 'metrics' in test_results and 'XGBoost' in test_results['metrics']:
+            xgb_metrics = test_results['metrics']['XGBoost']
+            if 'values' in xgb_metrics and len(xgb_metrics['values']) > 0:
+                kepler_accuracy = f"{xgb_metrics['values'][0] * 100:.2f}"
     
     if 'KEPLER' in METRICS_CACHE and 'experiment_config' in METRICS_CACHE['KEPLER']:
         config = METRICS_CACHE['KEPLER']['experiment_config']
         kepler_samples = str(config.get('n_train', 'N/A'))
         kepler_features = str(config.get('n_features', 'N/A'))
     
-    if 'TESS' in METRICS_CACHE and 'comparison_metrics' in METRICS_CACHE['TESS']:
-        tess_metrics = METRICS_CACHE['TESS']['comparison_metrics']
-        if 'values' in tess_metrics and len(tess_metrics['values']) > 0:
-            tess_accuracy = f"{tess_metrics['values'][0][1] * 100:.2f}"
+    # Get metrics for TESS if available
+    if 'TESS' in METRICS_CACHE and 'test_results' in METRICS_CACHE['TESS']:
+        test_results = METRICS_CACHE['TESS']['test_results']
+        if 'metrics' in test_results:
+            # Get first available model's accuracy
+            for model_name, model_metrics in test_results['metrics'].items():
+                if 'values' in model_metrics and len(model_metrics['values']) > 0:
+                    tess_accuracy = f"{model_metrics['values'][0] * 100:.2f}"
+                    break
     
     if 'TESS' in METRICS_CACHE and 'experiment_config' in METRICS_CACHE['TESS']:
         config = METRICS_CACHE['TESS']['experiment_config']
         tess_samples = str(config.get('n_train', 'N/A'))
         tess_features = str(config.get('n_features', 'N/A'))
     
->>>>>>> ea08e74f096fe53284d3ab221b4cd1688a279e9b
     telescope_info = {
         "kepler": {
             "name": "Kepler Space Telescope",
@@ -550,13 +558,9 @@ async def get_telescope_info(telescope_name: str):
             "launch_date": "2009-03-07",
             "status": "Retired (2018)",
             "discoveries": "2,662 confirmed exoplanets",
-<<<<<<< HEAD
-            "model_accuracy": "86.25%",
-=======
             "model_accuracy": kepler_accuracy,
             "training_samples": kepler_samples,
             "features": kepler_features,
->>>>>>> ea08e74f096fe53284d3ab221b4cd1688a279e9b
             "data_available": True
         },
         "tess": {
@@ -565,15 +569,10 @@ async def get_telescope_info(telescope_name: str):
             "launch_date": "2018-04-18",
             "status": "Active",
             "discoveries": "200+ confirmed exoplanets",
-<<<<<<< HEAD
-            "model_accuracy": "Coming Soon",
-            "data_available": False
-=======
             "model_accuracy": tess_accuracy,
             "training_samples": tess_samples,
             "features": tess_features,
             "data_available": True
->>>>>>> ea08e74f096fe53284d3ab221b4cd1688a279e9b
         },
         "k2": {
             "name": "Kepler's Extended Mission",
@@ -582,11 +581,8 @@ async def get_telescope_info(telescope_name: str):
             "status": "Retired (2018)",
             "discoveries": "500+ confirmed exoplanets",
             "model_accuracy": "Coming Soon",
-<<<<<<< HEAD
-=======
             "training_samples": "N/A",
             "features": "N/A",
->>>>>>> ea08e74f096fe53284d3ab221b4cd1688a279e9b
             "data_available": False
         }
     }
@@ -596,56 +592,44 @@ async def get_telescope_info(telescope_name: str):
     
     return telescope_info[telescope_name.lower()]
 
-<<<<<<< HEAD
-=======
 @app.get("/api/confusion_matrix/{telescope}")
-async def get_confusion_matrix(telescope: str):
-    """Get the path to confusion matrix image for a specific telescope"""
+async def get_confusion_matrix(telescope: str, model: str = "XGBoost"):
+    """Get the path to confusion matrix image for a specific telescope and model"""
     telescope_upper = telescope.upper()
     if telescope_upper not in ['KEPLER', 'TESS']:
         raise HTTPException(status_code=404, detail=f"Telescope {telescope} not found")
     
+    # Normalize model name (replace spaces with underscores)
+    model_name = model.replace(" ", "_")
+    
     # Construct the image path
     experiment_id = MODELS_DIR.name
-    image_path = f"/models/{experiment_id}/{telescope_upper}/Logistic_Regression_confusion_matrix.png"
+    image_path = f"/models/{experiment_id}/{telescope_upper}/{model_name}_confusion_matrix.png"
     
     # Check if the file exists
-    actual_path = MODELS_DIR / telescope_upper / "Logistic_Regression_confusion_matrix.png"
+    actual_path = MODELS_DIR / telescope_upper / f"{model_name}_confusion_matrix.png"
     if not actual_path.exists():
-        raise HTTPException(status_code=404, detail=f"Confusion matrix not found for {telescope}")
+        raise HTTPException(status_code=404, detail=f"Confusion matrix not found for {telescope} - {model}")
     
     return {
         "telescope": telescope_upper,
+        "model": model,
         "image_url": image_path,
         "experiment_id": experiment_id
     }
 
 @app.get("/api/feature_importance/{telescope}")
-async def get_feature_importance(telescope: str):
-    """Get feature importance data for a specific telescope"""
+async def get_feature_importance(telescope: str, model: str = "XGBoost"):
+    """Get feature importance data for a specific telescope and model"""
     telescope_upper = telescope.upper()
     if telescope_upper not in ['KEPLER', 'TESS']:
         raise HTTPException(status_code=404, detail=f"Telescope {telescope} not found")
     
     telescope_dir = MODELS_DIR / telescope_upper
+    model_name = model.replace(" ", "_")
     
-    # Try to load feature importance from various sources
-    feature_data = None
-    
-    # For TESS, we have selected_features.json
-    selected_features_file = telescope_dir / "Logistic_Regression_selected_features.json"
-    if selected_features_file.exists():
-        with open(selected_features_file, 'r') as f:
-            feature_data = json.load(f)
-            return {
-                "telescope": telescope_upper,
-                "features": feature_data.get('feature_names', []),
-                "n_features": feature_data.get('n_features', 0),
-                "source": "selected_features"
-            }
-    
-    # For KEPLER or fallback, extract from model file
-    model_file = telescope_dir / "Logistic_Regression_model.pkl"
+    # Extract from model file
+    model_file = telescope_dir / f"{model_name}_model.pkl"
     if model_file.exists():
         try:
             with open(model_file, 'rb') as f:
@@ -668,8 +652,10 @@ async def get_feature_importance(telescope: str):
                     # Get feature importance/coefficients
                     importance_values = None
                     if hasattr(classifier, 'coef_'):
+                        # For logistic regression
                         importance_values = np.abs(classifier.coef_[0]).tolist()
                     elif hasattr(classifier, 'feature_importances_'):
+                        # For tree-based models (XGBoost, Random Forest, etc.)
                         importance_values = classifier.feature_importances_.tolist()
                     
                     if importance_values and feature_names and len(importance_values) == len(feature_names):
@@ -677,11 +663,12 @@ async def get_feature_importance(telescope: str):
                         feature_importance_pairs = list(zip(feature_names, importance_values))
                         feature_importance_pairs.sort(key=lambda x: x[1], reverse=True)
                         
-                        # Take top 10
-                        top_features = feature_importance_pairs[:10]
+                        # Take top 15
+                        top_features = feature_importance_pairs[:15]
                         
                         return {
                             "telescope": telescope_upper,
+                            "model": model,
                             "features": [name for name, _ in top_features],
                             "importance_values": [val for _, val in top_features],
                             "n_features": len(feature_names),
@@ -690,21 +677,7 @@ async def get_feature_importance(telescope: str):
         except Exception as e:
             logger.error(f"Error extracting feature importance: {e}")
     
-    # Fallback to hardcoded KEPLER features if nothing else works
-    if telescope_upper == 'KEPLER':
-        return {
-            "telescope": "KEPLER",
-            "features": [
-                'koi_max_sngle_ev', 'koi_depth', 'koi_insol', 'koi_max_mult_ev',
-                'koi_dikco_msky', 'koi_insol_err2', 'koi_incl', 'koi_ror',
-                'koi_smet_err2', 'koi_prad_err1'
-            ],
-            "importance_values": [6.06, 2.61, 1.97, 1.83, 1.62, 1.28, 0.94, 0.72, 0.54, 0.44],
-            "n_features": 10,
-            "source": "default"
-        }
-    
-    raise HTTPException(status_code=404, detail=f"Feature importance data not found for {telescope}")
+    raise HTTPException(status_code=404, detail=f"Feature importance data not found for {telescope} - {model}")
 
 @app.get("/api/dashboard/stats")
 async def get_dashboard_stats():
@@ -716,14 +689,16 @@ async def get_dashboard_stats():
                 "training_samples": "N/A",
                 "test_samples": "N/A",
                 "features": "N/A",
-                "status": "not_ready"
+                "status": "not_ready",
+                "models": []
             },
             "tess": {
                 "accuracy": "N/A",
                 "training_samples": "N/A",
                 "test_samples": "N/A",
                 "features": "N/A",
-                "status": "not_ready"
+                "status": "not_ready",
+                "models": []
             }
         }
         
@@ -731,14 +706,18 @@ async def get_dashboard_stats():
         if 'KEPLER' in METRICS_CACHE:
             kepler_data = METRICS_CACHE['KEPLER']
             
-            # Get accuracy from test results
+            # Get best accuracy from test results (XGBoost)
             if 'test_results' in kepler_data:
                 test_results = kepler_data['test_results']
-                if 'metrics' in test_results and 'Logistic Regression' in test_results['metrics']:
-                    lr_metrics = test_results['metrics']['Logistic Regression']
-                    if 'values' in lr_metrics and len(lr_metrics['values']) > 0:
-                        stats['kepler']['accuracy'] = f"{lr_metrics['values'][0] * 100:.2f}"
+                if 'metrics' in test_results and 'XGBoost' in test_results['metrics']:
+                    xgb_metrics = test_results['metrics']['XGBoost']
+                    if 'values' in xgb_metrics and len(xgb_metrics['values']) > 0:
+                        stats['kepler']['accuracy'] = f"{xgb_metrics['values'][0] * 100:.2f}"
                         stats['kepler']['status'] = "ready"
+                
+                # Get all available models
+                if 'metrics' in test_results:
+                    stats['kepler']['models'] = list(test_results['metrics'].keys())
             
             # Get training/test samples and features from config
             if 'experiment_config' in kepler_data:
@@ -751,14 +730,17 @@ async def get_dashboard_stats():
         if 'TESS' in METRICS_CACHE:
             tess_data = METRICS_CACHE['TESS']
             
-            # Get accuracy from test results
+            # Get accuracy from test results (first available model)
             if 'test_results' in tess_data:
                 test_results = tess_data['test_results']
-                if 'metrics' in test_results and 'Logistic Regression' in test_results['metrics']:
-                    lr_metrics = test_results['metrics']['Logistic Regression']
-                    if 'values' in lr_metrics and len(lr_metrics['values']) > 0:
-                        stats['tess']['accuracy'] = f"{lr_metrics['values'][0] * 100:.2f}"
-                        stats['tess']['status'] = "ready"
+                if 'metrics' in test_results:
+                    stats['tess']['models'] = list(test_results['metrics'].keys())
+                    # Get first available model's accuracy
+                    for model_name, model_metrics in test_results['metrics'].items():
+                        if 'values' in model_metrics and len(model_metrics['values']) > 0:
+                            stats['tess']['accuracy'] = f"{model_metrics['values'][0] * 100:.2f}"
+                            stats['tess']['status'] = "ready"
+                            break
             
             # Get training/test samples and features from config
             if 'experiment_config' in tess_data:
@@ -773,7 +755,6 @@ async def get_dashboard_stats():
         logger.error(f"Error getting dashboard stats: {e}")
         raise HTTPException(status_code=500, detail="Failed to retrieve dashboard statistics")
 
->>>>>>> ea08e74f096fe53284d3ab221b4cd1688a279e9b
 if __name__ == "__main__":
     uvicorn.run(
         "main:app",

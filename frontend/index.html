@@ -341,23 +341,23 @@
                                 <div class="matrix-row">
                                     <div class="matrix-cell header">Not ExoPlanet</div>
                                     <div class="matrix-cell correct">
-                                        <div class="matrix-value">798</div>
-                                        <div class="matrix-percentage">(41.7%)</div>
+                                        <div class="matrix-value">874</div>
+                                        <div class="matrix-percentage">(45.7%)</div>
                                     </div>
                                     <div class="matrix-cell incorrect">
-                                        <div class="matrix-value">170</div>
-                                        <div class="matrix-percentage">(8.9%)</div>
+                                        <div class="matrix-value">94</div>
+                                        <div class="matrix-percentage">(4.9%)</div>
                                     </div>
                                 </div>
                                 <div class="matrix-row">
                                     <div class="matrix-cell header">ExoPlanet</div>
                                     <div class="matrix-cell incorrect">
-                                        <div class="matrix-value">93</div>
-                                        <div class="matrix-percentage">(4.9%)</div>
+                                        <div class="matrix-value">105</div>
+                                        <div class="matrix-percentage">(5.5%)</div>
                                     </div>
                                     <div class="matrix-cell correct">
-                                        <div class="matrix-value">852</div>
-                                        <div class="matrix-percentage">(44.5%)</div>
+                                        <div class="matrix-value">840</div>
+                                        <div class="matrix-percentage">(43.9%)</div>
                                     </div>
                                 </div>
                             </div>
@@ -481,7 +481,9 @@
                                 <label>Model Type:</label>
                                 <select id="trainModelSelect">
                                     <option value="logistic_regression">Logistic Regression</option>
+                                    <option value="decision_tree">Decision Tree</option>
                                     <option value="random_forest">Random Forest</option>
+                                    <option value="gradient_boosting">Gradient Boosting</option>
                                     <option value="xgboost">XGBoost</option>
                                     <option value="all">All Models</option>
                                 </select>
@@ -596,9 +598,7 @@
                         <div class="option-group">
                             <label>Model Type:</label>
                             <select id="modelSelect">
-                                <option value="logistic_regression">Logistic Regression</option>
-                                <option value="random_forest">Random Forest (Coming Soon)</option>
-                                <option value="xgboost">XGBoost (Coming Soon)</option>
+                                <option value="">Loading models...</option>
                             </select>
                         </div>
                     </div>

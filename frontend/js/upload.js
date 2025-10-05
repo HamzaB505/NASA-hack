@@ -4,8 +4,12 @@ class UploadHandler {
     constructor() {
         this.uploadedFile = null;
         this.selectedTelescope = 'kepler';
-        this.selectedModel = 'logistic_regression';
+        this.selectedModel = 'xgboost';
         this.apiBaseUrl = 'http://localhost:8000';
+        this.availableModels = {
+            kepler: [],
+            tess: []
+        };
         
         this.init();
     }
@@ -14,6 +18,33 @@ class UploadHandler {
         this.setupFileUpload();
         this.setupFormHandlers();
         this.setupDragAndDrop();
+        this.loadAvailableModels();
+    }
+
+    async loadAvailableModels() {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/api/models`);
+            const data = await response.json();
+            
+            // Store available models
+            this.availableModels.kepler = data.kepler_models || [];
+            this.availableModels.tess = data.tess_models || [];
+            
+            // Set default model
+            if (data.default_model) {
+                this.selectedModel = data.default_model.toLowerCase().replace(' ', '_');
+            }
+            
+            // Update model options for current telescope
+            this.updateModelOptions();
+            
+        } catch (error) {
+            console.error('Error loading available models:', error);
+            // Fallback to default models
+            this.availableModels.kepler = ['Logistic Regression', 'XGBoost', 'Random Forest', 'Gradient Boosting', 'Decision Tree'];
+            this.availableModels.tess = ['Logistic Regression', 'XGBoost', 'Random Forest', 'Gradient Boosting', 'Decision Tree'];
+            this.updateModelOptions();
+        }
     }
 
     setupFileUpload() {
@@ -174,27 +205,33 @@ class UploadHandler {
         const modelSelect = document.getElementById('modelSelect');
         if (!modelSelect) return;
 
-        // Update model options based on telescope selection
-        // For now, we'll keep the same options, but in a real app,
-        // you might want different models for different telescopes
-        switch (this.selectedTelescope) {
-            case 'kepler':
-                // Kepler has the trained model
-                modelSelect.innerHTML = `
-                    <option value="logistic_regression">Logistic Regression (86.25% Accuracy)</option>
-                    <option value="random_forest" disabled>Random Forest (Coming Soon)</option>
-                    <option value="xgboost" disabled>XGBoost (Coming Soon)</option>
-                `;
-                break;
-            case 'tess':
-            case 'k2':
-                // TESS and K2 models are coming soon
-                modelSelect.innerHTML = `
-                    <option value="logistic_regression" disabled>Logistic Regression (Coming Soon)</option>
-                    <option value="random_forest" disabled>Random Forest (Coming Soon)</option>
-                    <option value="xgboost" disabled>XGBoost (Coming Soon)</option>
-                `;
-                break;
+        // Get available models for selected telescope
+        const models = this.availableModels[this.selectedTelescope] || [];
+        
+        if (models.length === 0) {
+            // No models available for this telescope
+            modelSelect.innerHTML = `
+                <option value="">No models available</option>
+            `;
+            return;
+        }
+
+        // Build options HTML
+        let optionsHTML = '';
+        models.forEach(modelName => {
+            // Convert model name to value format (e.g., "XGBoost" -> "xgboost")
+            const modelValue = modelName.toLowerCase().replace(/\s+/g, '_');
+            const isSelected = modelValue === this.selectedModel;
+            optionsHTML += `<option value="${modelValue}" ${isSelected ? 'selected' : ''}>${modelName}</option>`;
+        });
+
+        modelSelect.innerHTML = optionsHTML;
+        
+        // Update selected model if it's not available for this telescope
+        if (!models.some(m => m.toLowerCase().replace(/\s+/g, '_') === this.selectedModel)) {
+            const firstModelValue = models[0].toLowerCase().replace(/\s+/g, '_');
+            this.selectedModel = firstModelValue;
+            modelSelect.value = firstModelValue;
         }
     }
 
@@ -218,8 +255,11 @@ class UploadHandler {
                 return;
             }
 
-            if (this.selectedTelescope !== 'kepler') {
-                this.showError('Only Kepler telescope data is currently supported. TESS and K2 models are coming soon!');
+            // Check if models are available for selected telescope
+            const modelsAvailable = this.availableModels[this.selectedTelescope] && 
+                                   this.availableModels[this.selectedTelescope].length > 0;
+            if (!modelsAvailable) {
+                this.showError(`No models available for ${this.selectedTelescope.toUpperCase()} telescope yet.`);
                 return;
             }
 

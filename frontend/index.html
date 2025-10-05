@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ExoPlanet AI - Discover the Universe</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/components.css">
+    <link rel="stylesheet" href="styles/animations.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <div class="logo-container">
+                    <div class="logo-text">
+                        <div class="custom-logo">
+                            <svg viewBox="0 0 100 100" class="logo-icon">
+                                <!-- Planet -->
+                                <circle cx="50" cy="50" r="25" fill="url(#planetGradient)" opacity="0.9"/>
+                                <!-- Planet rings -->
+                                <ellipse cx="50" cy="50" rx="35" ry="8" fill="none" stroke="url(#ringGradient)" stroke-width="2" opacity="0.7"/>
+                                <ellipse cx="50" cy="50" rx="40" ry="6" fill="none" stroke="url(#ringGradient)" stroke-width="1.5" opacity="0.5"/>
+                                <!-- Orbit path -->
+                                <circle cx="50" cy="50" r="45" fill="none" stroke="url(#orbitGradient)" stroke-width="1" opacity="0.3" stroke-dasharray="5,5">
+                                    <animateTransform attributeName="transform" type="rotate" values="0 50 50;360 50 50" dur="20s" repeatCount="indefinite"/>
+                                </circle>
+                                <!-- Satellite -->
+                                <circle cx="95" cy="50" r="3" fill="#00d4ff" opacity="0.8">
+                                    <animateTransform attributeName="transform" type="rotate" values="0 50 50;360 50 50" dur="20s" repeatCount="indefinite"/>
+                                </circle>
+                                <!-- Stars -->
+                                <circle cx="20" cy="25" r="1" fill="#00d4ff" opacity="0.8">
+                                    <animate attributeName="opacity" values="0.8;0.2;0.8" dur="2s" repeatCount="indefinite"/>
+                                </circle>
+                                <circle cx="80" cy="30" r="1.5" fill="#4ecdc4" opacity="0.6">
+                                    <animate attributeName="opacity" values="0.6;0.1;0.6" dur="3s" repeatCount="indefinite"/>
+                                </circle>
+                                <circle cx="15" cy="70" r="1" fill="#00d4ff" opacity="0.7">
+                                    <animate attributeName="opacity" values="0.7;0.2;0.7" dur="2.5s" repeatCount="indefinite"/>
+                                </circle>
+                                <circle cx="85" cy="75" r="1" fill="#4ecdc4" opacity="0.5">
+                                    <animate attributeName="opacity" values="0.5;0.1;0.5" dur="4s" repeatCount="indefinite"/>
+                                </circle>
+                                <!-- Gradients -->
+                                <defs>
+                                    <radialGradient id="planetGradient" cx="30%" cy="30%" r="70%">
+                                        <stop offset="0%" style="stop-color:#4ecdc4;stop-opacity:1" />
+                                        <stop offset="70%" style="stop-color:#00d4ff;stop-opacity:0.8" />
+                                        <stop offset="100%" style="stop-color:#16213e;stop-opacity:0.6" />
+                                    </radialGradient>
+                                    <linearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" style="stop-color:#00d4ff;stop-opacity:0.8" />
+                                        <stop offset="100%" style="stop-color:#4ecdc4;stop-opacity:0.6" />
+                                    </linearGradient>
+                                    <linearGradient id="orbitGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" style="stop-color:#00d4ff;stop-opacity:0.4" />
+                                        <stop offset="100%" style="stop-color:#4ecdc4;stop-opacity:0.2" />
+                                    </linearGradient>
+                                </defs>
+                            </svg>
+                        </div>
+                        <span class="logo-title">ExoPlanet AI</span>
+                    </div>
+                </div>
+            </div>
+            <div class="nav-menu">
+                <a href="#home" class="nav-link active">Home</a>
+                <a href="#analytics" class="nav-link">Analytics</a>
+                <a href="#predict" class="nav-link">Predict</a>
+                <a href="#train" class="nav-link">Train</a>
+                <a href="#about" class="nav-link">About</a>
+            </div>
+            <div class="nav-toggle">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Home Section -->
+        <section id="home" class="section active">
+            <div class="hero-container">
+                <div class="galaxy-background">
+                    <video class="galaxy-video" autoplay muted loop playsinline preload="auto">
+                        <source src="GSFC_20080822_HST_m10232_COS_Install_006~orig.mp4" type="video/mp4">
+                    </video>
+                </div>
+                
+                <div class="hero-content">
+                    <div class="hero-text">
+                        <h1 class="hero-title">
+                            <span class="gradient-text">Discover ExoPlanets</span>
+                            <br>with AI-Powered Analysis
+                        </h1>
+                        <p class="hero-description">
+                            Advanced machine learning models trained on Kepler, TESS, and K2 telescope data 
+                            to identify potential exoplanets with unprecedented accuracy.
+                        </p>
+                        
+                        <div class="telescope-selector">
+                            <h3>Select Telescope Data Source</h3>
+                            <div class="telescope-options">
+                                <div class="telescope-card" data-telescope="kepler">
+                                    <div class="telescope-icon">
+                                        <i class="fas fa-satellite"></i>
+                                    </div>
+                                    <h4>Kepler</h4>
+                                    <p>NASA's planet-hunting telescope</p>
+                                    <div class="accuracy-badge">86.25% Accuracy</div>
+                                </div>
+                                
+                                <div class="telescope-card" data-telescope="tess">
+                                    <div class="telescope-icon">
+                                        <i class="fas fa-search"></i>
+                                    </div>
+                                    <h4>TESS</h4>
+                                    <p>Transiting Exoplanet Survey Satellite</p>
+                                    <div class="accuracy-badge">Coming Soon</div>
+                                </div>
+                                
+                                <div class="telescope-card" data-telescope="k2">
+                                    <div class="telescope-icon">
+                                        <i class="fas fa-star"></i>
+                                    </div>
+                                    <h4>K2</h4>
+                                    <p>Kepler's extended mission</p>
+                                    <div class="accuracy-badge">Coming Soon</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="hero-actions">
+                            <button class="btn btn-primary" onclick="navigateToSection('predict')">
+                                <i class="fas fa-upload"></i>
+                                Upload Data & Predict
+                            </button>
+                            <button class="btn btn-secondary" onclick="navigateToSection('analytics')">
+                                <i class="fas fa-chart-line"></i>
+                                View Analytics
+                            </button>
+                            <button class="btn btn-demo" onclick="runLiveDemo()">
+                                <i class="fas fa-play"></i>
+                                🚀 Live Demo
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="hero-stats">
+                        <div class="stat-card">
+                            <div class="stat-number" data-target="86.25">0</div>
+                            <div class="stat-label">Accuracy</div>
+                            <div class="stat-trend">↗ +2.3% vs baseline</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number" data-target="7651">0</div>
+                            <div class="stat-label">Samples Trained</div>
+                            <div class="stat-trend">Kepler + TESS + K2</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number" data-target="324">0</div>
+                            <div class="stat-label">Features Analyzed</div>
+                            <div class="stat-trend">Advanced ML Pipeline</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Recent Discoveries Section -->
+                    <div class="recent-discoveries">
+                        <h3>🔭 Recent AI Discoveries</h3>
+                        <p class="discoveries-disclaimer">* Demo examples showcasing AI prediction capabilities</p>
+                        <div class="discoveries-grid" id="discoveriesGrid">
+                            <!-- Discoveries will be loaded here -->
+                        </div>
+                        <div class="discovery-stats">
+                            <div class="discovery-stat">
+                                <span class="stat-icon">🌍</span>
+                                <span class="stat-text">2 Confirmed Exoplanets</span>
+                            </div>
+                            <div class="discovery-stat">
+                                <span class="stat-icon">⚡</span>
+                                <span class="stat-text">Real-time Analysis</span>
+                            </div>
+                            <div class="discovery-stat">
+                                <span class="stat-icon">🎯</span>
+                                <span class="stat-text">Advanced ML Pipeline</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Analytics Section -->
+        <section id="analytics" class="section">
+            <div class="analytics-container">
+                <div class="section-header">
+                    <h2 class="section-title">Model Performance Analytics</h2>
+                    <p class="section-description">Comprehensive analysis of our exoplanet detection model</p>
+                    
+                    <!-- Satellite Selection -->
+                    <div class="satellite-selector">
+                        <h3>Select Telescope Data:</h3>
+                        <div class="satellite-options">
+                            <button class="satellite-btn active" data-satellite="kepler">
+                                <i class="fas fa-satellite"></i>
+                                <span>Kepler</span>
+                            </button>
+                            <button class="satellite-btn" data-satellite="tess">
+                                <i class="fas fa-satellite"></i>
+                                <span>TESS</span>
+                            </button>
+                            <button class="satellite-btn" data-satellite="k2">
+                                <i class="fas fa-satellite"></i>
+                                <span>K2</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="analytics-grid">
+                    <!-- Performance Metrics Chart -->
+                    <div class="analytics-card metrics-chart-card">
+                        <div class="chart-header">
+                            <h3>Performance Metrics</h3>
+                            <div class="chart-controls">
+                                <button class="btn btn-sm" onclick="exportChart('metrics')" title="Export as PNG">
+                                    <i class="fas fa-download"></i>
+                                </button>
+                                <button class="btn btn-sm" onclick="exportChartData('metrics')" title="Export Data">
+                                    <i class="fas fa-file-export"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="metricsChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <!-- ROC Curve Chart -->
+                    <div class="analytics-card roc-chart-card">
+                        <div class="chart-header">
+                            <h3>ROC Curve</h3>
+                            <div class="chart-controls">
+                                <button class="btn btn-sm" onclick="exportChart('roc')" title="Export as PNG">
+                                    <i class="fas fa-download"></i>
+                                </button>
+                                <button class="btn btn-sm" onclick="exportChartData('roc')" title="Export Data">
+                                    <i class="fas fa-file-export"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="rocChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <!-- Confusion Matrix -->
+                    <div class="analytics-card confusion-matrix-card">
+                        <h3>Confusion Matrix</h3>
+                        <div class="confusion-matrix">
+                            <div class="matrix-header">
+                                <div class="matrix-label">Predicted</div>
+                            </div>
+                            <div class="matrix-content">
+                                <div class="matrix-row">
+                                    <div class="matrix-cell header">Actual</div>
+                                    <div class="matrix-cell header">Not ExoPlanet</div>
+                                    <div class="matrix-cell header">ExoPlanet</div>
+                                </div>
+                                <div class="matrix-row">
+                                    <div class="matrix-cell header">Not ExoPlanet</div>
+                                    <div class="matrix-cell correct">
+                                        <div class="matrix-value">798</div>
+                                        <div class="matrix-percentage">(41.7%)</div>
+                                    </div>
+                                    <div class="matrix-cell incorrect">
+                                        <div class="matrix-value">170</div>
+                                        <div class="matrix-percentage">(8.9%)</div>
+                                    </div>
+                                </div>
+                                <div class="matrix-row">
+                                    <div class="matrix-cell header">ExoPlanet</div>
+                                    <div class="matrix-cell incorrect">
+                                        <div class="matrix-value">93</div>
+                                        <div class="matrix-percentage">(4.9%)</div>
+                                    </div>
+                                    <div class="matrix-cell correct">
+                                        <div class="matrix-value">852</div>
+                                        <div class="matrix-percentage">(44.5%)</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Feature Importance Chart -->
+                    <div class="analytics-card feature-importance-chart-card">
+                        <h3>Feature Importance</h3>
+                        <div class="chart-container">
+                            <canvas id="featureImportanceChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <!-- Training Progress Chart -->
+                    <div class="analytics-card training-progress-card">
+                        <h3>Model Training Progress</h3>
+                        <div class="chart-container">
+                            <canvas id="trainingProgressChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <!-- Training Info -->
+                    <div class="analytics-card training-info-card static-config">
+                        <h3>Training Configuration</h3>
+                        <div class="training-stats-static">
+                            <div class="config-row">
+                                <span class="config-label">Training Samples:</span>
+                                <span class="config-value">7,651</span>
+                            </div>
+                            <div class="config-row">
+                                <span class="config-label">Test Samples:</span>
+                                <span class="config-value">1,913</span>
+                            </div>
+                            <div class="config-row">
+                                <span class="config-label">Features:</span>
+                                <span class="config-value">324</span>
+                            </div>
+                            <div class="config-row">
+                                <span class="config-label">Classes:</span>
+                                <span class="config-value">2</span>
+                            </div>
+                            <div class="config-row">
+                                <span class="config-label">CV Folds:</span>
+                                <span class="config-value">2</span>
+                            </div>
+                            <div class="config-row">
+                                <span class="config-label">Optimization Iterations:</span>
+                                <span class="config-value">2, 5, 10</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Training Logs Section -->
+                <div class="analytics-card logs-card">
+                    <div class="logs-header">
+                        <h3>Training Logs</h3>
+                    </div>
+                    <div class="logs-content" id="logsContent">
+                        <!-- Logs will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Train Section -->
+        <section id="train" class="section">
+            <div class="train-container">
+                <div class="section-header">
+                    <h2 class="section-title">Train Your Model</h2>
+                    <p class="section-description">Upload your own dataset to train and improve the exoplanet detection model</p>
+                </div>
+                
+                <div class="train-content">
+                    <div class="train-info">
+                        <div class="info-card">
+                            <h3>🚀 Advanced Training</h3>
+                            <p>Upload your own telescope data to train a custom model with your specific dataset. This allows for domain-specific improvements and better performance on your data.</p>
+                        </div>
+                        
+                        <div class="info-card">
+                            <h3>📊 Model Comparison</h3>
+                            <p>Compare your custom model with our pre-trained models to see performance improvements and validate your training approach.</p>
+                        </div>
+                        
+                        <div class="info-card">
+                            <h3>🔬 Research Ready</h3>
+                            <p>Perfect for researchers who want to experiment with different datasets, hyperparameters, or model architectures.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="train-upload">
+                        <div class="upload-area">
+                            <div class="upload-zone" id="trainUploadZone">
+                                <div class="upload-content">
+                                    <i class="fas fa-brain upload-icon"></i>
+                                    <h3>Upload Training Dataset</h3>
+                                    <p>Upload your CSV file with telescope data for training</p>
+                                    <button class="btn btn-primary" onclick="document.getElementById('trainFileInput').click()">
+                                        <i class="fas fa-upload"></i>
+                                        Choose Training File
+                                    </button>
+                                    <input type="file" id="trainFileInput" accept=".csv" style="display: none;">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="training-options">
+                            <div class="option-group">
+                                <label>Telescope Type (Optional):</label>
+                                <select id="telescopeType">
+                                    <option value="">Select Telescope</option>
+                                    <option value="kepler">Kepler</option>
+                                    <option value="tess">TESS</option>
+                                    <option value="k2">K2</option>
+                                </select>
+                            </div>
+                            
+                            <div class="option-group">
+                                <label>Model Type:</label>
+                                <select id="trainModelSelect">
+                                    <option value="logistic_regression">Logistic Regression</option>
+                                    <option value="random_forest">Random Forest</option>
+                                    <option value="xgboost">XGBoost</option>
+                                    <option value="all">All Models</option>
+                                </select>
+                            </div>
+                            
+                            <div class="option-group">
+                                <label>Cross-Validation Folds:</label>
+                                <select id="cvFolds">
+                                    <option value="2">2 Folds</option>
+                                    <option value="3">3 Folds</option>
+                                    <option value="5" selected>5 Folds</option>
+                                    <option value="10">10 Folds</option>
+                                </select>
+                            </div>
+                            
+                            <div class="option-group">
+                                <label>Optimization Iterations:</label>
+                                <select id="nIter">
+                                    <option value="2">2 Iterations</option>
+                                    <option value="5">5 Iterations</option>
+                                    <option value="20">20 Iterations</option>
+                                    <option value="50" selected>50 Iterations</option>
+                                    <option value="100">100 Iterations</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="train-actions">
+                            <button class="btn btn-primary" id="startTrainingBtn" disabled>
+                                <i class="fas fa-play"></i>
+                                Start Training
+                            </button>
+                            <button class="btn btn-secondary" id="clearTrainingBtn">
+                                <i class="fas fa-trash"></i>
+                                Clear
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Training Progress -->
+                    <div class="training-progress" id="trainingProgress" style="display: none;">
+                        <h3>Training Progress</h3>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                        <div class="progress-text" id="progressText">Initializing...</div>
+                        <div class="training-logs" id="trainingLogs">
+                            <!-- Training logs will appear here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Predict Section -->
+        <section id="predict" class="section">
+            <div class="predict-container">
+                <div class="section-header">
+                    <h2 class="section-title">Upload Data for Prediction</h2>
+                    <p class="section-description">Upload your telescope data to predict if it contains an exoplanet</p>
+                </div>
+                
+                <!-- Upload Method Selection -->
+                <div class="upload-method-selector">
+                    <div class="method-tabs">
+                        <button class="method-tab active" data-method="file">📁 File Upload</button>
+                        <button class="method-tab" data-method="form">📝 Data Form</button>
+                    </div>
+                </div>
+                
+                <!-- File Upload Method -->
+                <div class="upload-method" id="fileUploadMethod">
+                    <div class="upload-area">
+                        <div class="upload-zone" id="uploadZone">
+                            <div class="upload-content">
+                                <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                                <h3>Drop your data file here</h3>
+                                <p>Supports CSV, JSON, and Excel files</p>
+                                <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                                    <i class="fas fa-folder-open"></i>
+                                    Choose File
+                                </button>
+                                <input type="file" id="fileInput" accept=".csv,.json,.xlsx,.xls" style="display: none;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Data Form Method -->
+                <div class="upload-method" id="formUploadMethod" style="display: none;">
+                    <div class="data-form-container">
+                        <div class="form-header">
+                            <h3>Enter Your Data</h3>
+                            <p>Fill in the top 10 most important features for prediction</p>
+                        </div>
+                        <div class="data-form" id="dataForm">
+                            <!-- Form fields will be generated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+                    
+                    <div class="upload-options">
+                        <div class="option-group">
+                            <label>Telescope Source:</label>
+                            <select id="telescopeSelect">
+                                <option value="kepler">Kepler</option>
+                                <option value="tess">TESS</option>
+                                <option value="k2">K2</option>
+                            </select>
+                        </div>
+                        
+                        <div class="option-group">
+                            <label>Model Type:</label>
+                            <select id="modelSelect">
+                                <option value="logistic_regression">Logistic Regression</option>
+                                <option value="random_forest">Random Forest (Coming Soon)</option>
+                                <option value="xgboost">XGBoost (Coming Soon)</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="upload-actions">
+                        <button class="btn btn-primary" id="predictBtn" disabled>
+                            <i class="fas fa-rocket"></i>
+                            Predict ExoPlanet
+                        </button>
+                        <button class="btn btn-secondary" id="clearBtn">
+                            <i class="fas fa-trash"></i>
+                            Clear
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Results Area -->
+                <div class="results-area" id="resultsArea" style="display: none;">
+                    <div class="results-header">
+                        <h3>Prediction Results</h3>
+                    </div>
+                    
+                    <div class="prediction-result" id="predictionResult">
+                        <!-- Results will be populated here -->
+                    </div>
+                    
+                    <div class="detailed-analysis" id="detailedAnalysis">
+                        <!-- Detailed analysis will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- About Section -->
+        <section id="about" class="section">
+            <div class="about-container">
+                <div class="section-header">
+                    <div class="nasa-branding">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/NASA_Worm_logo.svg/200px-NASA_Worm_logo.svg.png" alt="NASA" class="nasa-logo-large">
+                        <div class="nasa-text">
+                            <h2 class="section-title">About ExoPlanet AI</h2>
+                            <p class="section-description">Discovering new worlds through advanced machine learning using NASA's telescope data</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Satellite Status Selector -->
+                    <div class="satellite-status-selector">
+                        <h3>Current Model Status</h3>
+                        <div class="satellite-status-grid">
+                            <div class="satellite-status-card active">
+                                <div class="satellite-icon">
+                                    <i class="fas fa-satellite"></i>
+                                </div>
+                                <div class="satellite-info">
+                                    <h4>Kepler</h4>
+                                    <p>Model Trained & Ready</p>
+                                    <div class="status-badge ready">86.25% Accuracy</div>
+                                </div>
+                            </div>
+                            
+                            <div class="satellite-status-card">
+                                <div class="satellite-icon">
+                                    <i class="fas fa-search"></i>
+                                </div>
+                                <div class="satellite-info">
+                                    <h4>TESS</h4>
+                                    <p>Training in Progress</p>
+                                    <div class="status-badge training">Coming Soon</div>
+                                </div>
+                            </div>
+                            
+                            <div class="satellite-status-card">
+                                <div class="satellite-icon">
+                                    <i class="fas fa-star"></i>
+                                </div>
+                                <div class="satellite-info">
+                                    <h4>K2</h4>
+                                    <p>Training in Progress</p>
+                                    <div class="status-badge training">Coming Soon</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="about-content">
+                    <div class="about-text">
+                        <h3>Our Mission</h3>
+                        <p>
+                            ExoPlanet AI leverages cutting-edge machine learning algorithms to analyze 
+                            telescope data from NASA's Kepler, TESS, and K2 missions. Our models are 
+                            trained on thousands of confirmed exoplanet candidates to identify patterns 
+                            that distinguish real exoplanets from false positives.
+                        </p>
+                        
+                        <h3>Technology Stack</h3>
+                        <div class="tech-stack">
+                            <div class="tech-item">
+                                <i class="fas fa-brain"></i>
+                                <span>Machine Learning</span>
+                            </div>
+                            <div class="tech-item">
+                                <i class="fas fa-chart-line"></i>
+                                <span>Data Analysis</span>
+                            </div>
+                            <div class="tech-item">
+                                <i class="fas fa-satellite"></i>
+                                <span>NASA Data</span>
+                            </div>
+                            <div class="tech-item">
+                                <i class="fas fa-code"></i>
+                                <span>Python/Scikit-learn</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="about-stats">
+                        <div class="stat-item">
+                            <div class="stat-icon">
+                                <i class="fas fa-rocket"></i>
+                            </div>
+                            <div class="stat-info">
+                                <div class="stat-number">86.25%</div>
+                                <div class="stat-label">Prediction Accuracy</div>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-item">
+                            <div class="stat-icon">
+                                <i class="fas fa-database"></i>
+                            </div>
+                            <div class="stat-info">
+                                <div class="stat-number">7,651</div>
+                                <div class="stat-label">Samples Trained</div>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-item">
+                            <div class="stat-icon">
+                                <i class="fas fa-vial"></i>
+                            </div>
+                            <div class="stat-info">
+                                <div class="stat-number">1,913</div>
+                                <div class="stat-label">Test Samples</div>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-item">
+                            <div class="stat-icon">
+                                <i class="fas fa-cogs"></i>
+                            </div>
+                            <div class="stat-info">
+                                <div class="stat-number">324</div>
+                                <div class="stat-label">Features Analyzed</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">🚀 Initializing AI Demo...</div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/main.js"></script>
+    <script src="js/animations.js"></script>
+    <script src="js/upload.js"></script>
+    <script src="js/charts.js"></script>
+    <script src="js/enhanced.js"></script>
+</body>
+</html>

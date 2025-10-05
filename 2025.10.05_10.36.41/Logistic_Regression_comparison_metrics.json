@@ -1,0 +1,22 @@
+{
+  "columns": [
+    "Model",
+    "Accuracy",
+    "Precision",
+    "Recall",
+    "F1-Score",
+    "ROC AUC",
+    "PR AUC"
+  ],
+  "values": [
+    [
+      "Logistic Regression",
+      0.8625,
+      0.865,
+      0.8625,
+      0.8624,
+      0.9359,
+      0.9325
+    ]
+  ]
+}

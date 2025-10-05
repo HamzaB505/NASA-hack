@@ -257,11 +257,11 @@ class DataPreprocessor:
             # Planet properties that depend on refined stellar params
             "koi_prad", "koi_prad_err1", "koi_prad_err2",
             "koi_teq",  "koi_teq_err1",  "koi_teq_err2",
-            "koi_insol","koi_insol_err1","koi_insol_err2",
+            "koi_insol", "koi_insol_err1", "koi_insol_err2",
 
             # Stellar parameter uncertainties (follow-up/derived)
-            "koi_steff_err1","koi_steff_err2",
-            "koi_slogg_err1","koi_slogg_err2",
+            "koi_steff_err1", "koi_steff_err2",
+            "koi_slogg_err1", "koi_slogg_err2",
             "koi_srad_err1", "koi_srad_err2",
 
             # Cohort/version info (can cause distribution shift across deliveries)
@@ -631,15 +631,36 @@ class DataPreprocessor:
         elif self.datatype == DATATYPE.TESS:
             # Process features
             X_processed, y_processed = self.prepare_tess_data(filename)
+            identifiers = [col for col in X_processed.columns 
+                           if ("name" in col) or ("id" in col)]
+
+            data_cols = [col for col in X_processed.columns if "date" in col]
+
+            dropped_cols = identifiers + data_cols
+
+            X_processed.drop(columns=dropped_cols, inplace=True)
+
+            # Drop columns with only one unique value
+            single_value_cols = []
+            for col in X_processed.columns:
+                if X_processed[col].nunique() <= 1:
+                    single_value_cols.append(col)
+            
+            if single_value_cols:
+                logger.info(f"Dropping columns with single values: "
+                            f"{single_value_cols}")
+                X_processed = X_processed.drop(columns=single_value_cols)
+            else:
+                logger.info("No columns with single values found")
             
             # Process labels
-            #y_processed = self.process_disposition_labels(y)
+            # y_processed = self.process_disposition_labels(y)
         elif self.datatype == DATATYPE.K2:
             # Process features
             X_processed = self.prepare_data(X)
             
             # Process labels
-            y_processed = self.process_disposition_labels(y)
+            # y_processed = self.process_disposition_labels(y)
         else:
             raise ValueError(f"Invalid dataset: {self.datatype}")
 

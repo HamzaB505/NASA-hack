@@ -402,7 +402,7 @@ class ModelOptimizer:
         logger.info(f"Successfully created {len(pipelines)} model pipelines")
         return pipelines
 
-    def get_bayesian_search_spaces(self):
+    def get_bayesian_search_spaces(self, n_features=None):
         """
         Define hyperparameter search spaces for Bayesian optimization.
         Note: classifier is wrapped with CalibratedClassifierCV, so parameters
@@ -414,22 +414,24 @@ class ModelOptimizer:
             Dictionary containing model name as key and search space as value
         """
         logger.info("Defining Bayesian search spaces for hyperparameter optimization")
-        
+
+        max_features_upper = min(30, n_features) if n_features else 30
+
         search_spaces = {
             'Logistic Regression': {
-                'feature_selector__max_features': Integer(5, 30),
+                'feature_selector__max_features': Integer(5, max_features_upper),
                 'classifier__estimator__C': Real(0.01, 100, prior='log-uniform'),
                 'classifier__estimator__penalty': Categorical(['l2'])
             },
             
             'Random Forest': {
-                'feature_selector__max_features': Integer(5, 30),
+                'feature_selector__max_features': Integer(5, max_features_upper),
                 'classifier__estimator__n_estimators': Integer(50, 300),
                 'classifier__estimator__min_samples_split': Integer(2, 20)
             },
             
             'Gradient Boosting': {
-                'feature_selector__max_features': Integer(5, 30),
+                'feature_selector__max_features': Integer(5, max_features_upper),
                 'classifier__estimator__n_estimators': Integer(50, 300),
                 'classifier__estimator__learning_rate': Real(
                     0.01, 0.3, prior='log-uniform'
@@ -438,7 +440,7 @@ class ModelOptimizer:
             },
             
             'XGBoost': {
-                'feature_selector__max_features': Integer(5, 30),
+                'feature_selector__max_features': Integer(5, max_features_upper),
                 'classifier__estimator__n_estimators': Integer(50, 300),
                 'classifier__estimator__learning_rate': Real(
                     0.01, 0.3, prior='log-uniform'
@@ -447,16 +449,16 @@ class ModelOptimizer:
             },
             
             'SVM': {
-                'feature_selector__max_features': Integer(5, 30),
+                'feature_selector__max_features': Integer(5, max_features_upper),
                 'classifier__estimator__C': Real(0.1, 100, prior='log-uniform')
             },
             
             'Decision Tree': {
-                'feature_selector__max_features': Integer(5, 30),
+                'feature_selector__max_features': Integer(5, max_features_upper),
                 'classifier__estimator__min_samples_split': Integer(2, 20)
             }
         }
-        
+
         self.search_spaces = search_spaces
         logger.info(f"Defined search spaces for {len(search_spaces)} models")
         return search_spaces
@@ -669,7 +671,7 @@ class ModelOptimizer:
         if self.pipelines is None:
             self.create_model_pipelines()
         if self.search_spaces is None:
-            self.get_bayesian_search_spaces()
+            self.get_bayesian_search_spaces(n_features=X_train.shape[1])
 
         optimized_models = {}
         model_names = list(self.pipelines.keys())

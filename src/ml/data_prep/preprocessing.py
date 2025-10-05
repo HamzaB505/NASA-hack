@@ -22,8 +22,6 @@ class DataPreprocessor:
             Directory path for data files
         """
         self.data_dir = data_dir
-        self.kepler_url = ("https://exoplanetarchive.ipac.caltech.edu/cgi-bin/"
-                           "nstedAPI/nph-nstedAPI?table=cumulative")
         self.random_state = 42
 
     def download_data(self, url: str = None):
@@ -36,7 +34,7 @@ class DataPreprocessor:
             URL to download data from. If None, uses default Kepler URL.
         """
         if url is None:
-            url = self.kepler_url
+            url = "https://exoplanetarchive.ipac.caltech.edu/cgi-bin/nstedAPI/nph-nstedAPI?table=cumulative"
             
         response = requests.get(url)
         with open(f'{self.data_dir}/kepler.csv', 'wb') as file:
@@ -510,6 +508,17 @@ class DataPreprocessor:
             y_processed = y_processed[~missing_indices]
             
             logger.info(f"Dropped {missing_indices.sum()} rows with missing labels")
+
+        # Drop koi_score column leakage
+        X_processed.drop(columns=['koi_score'], inplace=True)
+        flag_cols = [col for col in X_processed.columns if "koi_fpflag" in col]
+
+        if flag_cols:
+            logger.info(f"Dropping columns with koi_fpflag: {flag_cols}")
+            X_processed.drop(columns=flag_cols, inplace=True)
+            logger.info(f"Dropped columns with koi_fpflag: {flag_cols}")
+        else:
+            logger.info("No columns with koi_fpflag found")
 
         X_train, X_test, y_train, y_test = self.data_split(
             X_processed, y_processed)

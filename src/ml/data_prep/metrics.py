@@ -131,6 +131,9 @@ def get_classification_metrics(y_true, y_pred, y_pred_proba=None, model_name="Mo
     # Add probability-based metrics if available
     if y_pred_proba is not None:
         try:
+            # Ensure y_pred_proba is a numpy array
+            y_pred_proba = np.asarray(y_pred_proba)
+            
             # For binary classification
             if len(np.unique(y_true)) == 2:
                 roc_auc = roc_auc_score(
@@ -148,7 +151,8 @@ def get_classification_metrics(y_true, y_pred, y_pred_proba=None, model_name="Mo
                 roc_auc = roc_auc_score(y_true, y_pred_proba, multi_class='ovr', average='weighted')
                 metrics['ROC AUC'] = roc_auc
         except Exception as e:
-            # If probability metrics fail, skip them
+            # If probability metrics fail, log the error and skip them
+            logger.warning(f"Failed to compute AUC metrics for {model_name}: {str(e)}")
             pass
     
     # Create DataFrame

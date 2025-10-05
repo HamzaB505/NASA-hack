@@ -5,11 +5,7 @@ import os
 import json
 import numpy as np
 from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
-from xgboost import XGBClassifier
-from sklearn.svm import SVC
-from sklearn.linear_model import Perceptron
-from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.impute import KNNImputer
@@ -20,9 +16,10 @@ from skopt import BayesSearchCV
 from skopt.space import Real, Integer, Categorical
 from tqdm import tqdm
 from src.ml import logger
-from src.ml.data_prep.metrics import (compute_and_show_confusion_matrix, 
+from src.ml.data_prep.metrics import (compute_and_show_confusion_matrix,
                                       get_classification_metrics,
                                       compare_models_metrics)
+from src.ml.data_prep.utils import extract_feature_importance
 
 
 class ModelOptimizer:
@@ -77,20 +74,19 @@ class ModelOptimizer:
         models = {
             'Logistic Regression': LogisticRegression(
                 solver='liblinear',
-                random_state=self.random_state
-            ),
-            'Decision Tree': DecisionTreeClassifier(
-                random_state=self.random_state
-            ),
-            'Random Forest': RandomForestClassifier(
-                random_state=self.random_state
-            ),
-            'Gradient Boosting': GradientBoostingClassifier(
-                random_state=self.random_state
-            ),
-            'XGBoost': XGBClassifier(random_state=self.random_state),
-            'SVM': SVC(random_state=self.random_state, probability=True),
-            'Perceptron': Perceptron(random_state=self.random_state),
+                random_state=self.random_state)
+            # ),
+            # 'Decision Tree': DecisionTreeClassifier(
+            #     random_state=self.random_state
+            # ),
+            # 'Random Forest': RandomForestClassifier(
+            #     random_state=self.random_state
+            # ),
+            # 'Gradient Boosting': GradientBoostingClassifier(
+            #     random_state=self.random_state
+            # ),
+            # 'XGBoost': XGBClassifier(random_state=self.random_state),
+            # 'SVM': SVC(random_state=self.random_state, probability=True)
         }
         
         logger.info(f"Creating pipelines for {len(models)} models: {list(models.keys())}")
@@ -167,10 +163,6 @@ class ModelOptimizer:
             'Decision Tree': {
                 'feature_selector__max_features': Integer(5, 30),
                 'classifier__min_samples_split': Integer(2, 20)
-            },
-            'Perceptron': {
-                'feature_selector__max_features': Integer(5, 30),
-                'classifier__alpha': Real(0.0001, 0.1, prior='log-uniform')
             }
         }
         
@@ -186,6 +178,7 @@ class ModelOptimizer:
                 y_train,
                 cv=5,
                 n_iter=50,
+                n_points=10,
                 scoring='accuracy',
                 n_jobs=-1):
 
@@ -206,6 +199,8 @@ class ModelOptimizer:
             Number of cross-validation folds for StratifiedKFold
         n_iter : int, default=50
             Number of optimization iterations
+        n_points : int, default=10
+            Number of points to sample from the search space
         scoring : str, default='accuracy'
             Scoring metric for optimization
         n_jobs : int, default=-1
@@ -232,7 +227,7 @@ class ModelOptimizer:
             search_spaces=search_space,
             n_iter=n_iter,
             cv=stratified_cv,
-            n_points=10,
+            n_points=n_points,
             scoring=scoring,
             random_state=self.random_state,
             n_jobs=n_jobs,
@@ -286,15 +281,16 @@ class ModelOptimizer:
         
         # Save individual result summary as JSON
         result_summary = {
+            "description": "Best cross-validation results",
             "best_score": float(pipeline_result["best_score"]),
             "best_params": pipeline_result["best_params"],
-            "cv_results": {k: v.tolist() if hasattr(v, 'tolist') else v 
-                          for k, v in pipeline_result["cv_results"].items()}
+            "cv_results": {
+                k: v.tolist() if hasattr(v, 'tolist') else v 
+                for k, v in pipeline_result["cv_results"].items()}
         }
         
         results_path = os.path.join(self.model_save_dir, 
-                                    f'{clean_name}_results.json')
-        import json
+                                    f'{clean_name}_cv_results.json')
         with open(results_path, 'w') as f:
             json.dump(result_summary, f, indent=2)
         
@@ -331,13 +327,14 @@ class ModelOptimizer:
         results_summary = {}
         for model_name, pipeline_result in pipeline_results.items():
             results_summary[model_name] = {
+                "description": "Best cross-validation results",
                 "best_score": pipeline_result["best_score"],
                 "best_params": pipeline_result["best_params"],
                 "cv_results": pipeline_result["cv_results"]
             }
         
-        results_path = os.path.join(self.model_save_dir, 
-                                    'validation_results.pkl')
+        results_path = os.path.join(self.model_save_dir,
+                                    'validation_results.json')
         with open(results_path, 'wb') as f:
             pickle.dump(results_summary, f)
         
@@ -349,6 +346,7 @@ class ModelOptimizer:
             y_train: pd.Series,
             cv: int = 5,
             n_iter: int = 50,
+            n_points: int = 10,
             scoring: str = 'accuracy',
             n_jobs: int = -1):
         """
@@ -398,6 +396,7 @@ class ModelOptimizer:
                 y_train=y_train,
                 cv=cv,
                 n_iter=n_iter,
+                n_points=n_points,
                 scoring=scoring,
                 n_jobs=n_jobs
             )
@@ -414,6 +413,7 @@ class ModelOptimizer:
                   f"{pipeline_results['best_params']}")
 
         self.optimized_models = optimized_models
+        self.model_names = model_names
         logger.info(f"Completed training of all {len(optimized_models)} models")
 
         return optimized_models
@@ -422,7 +422,8 @@ class ModelOptimizer:
             self,
             X_test: pd.DataFrame,
             y_test: pd.Series,
-            models: dict):
+            models: dict,
+            feature_names: list = None):
         """
         Evaluate a list of models on the test set.
         
@@ -434,6 +435,8 @@ class ModelOptimizer:
             Test labels
         models : dict
             Dictionary containing model name as key and model as value
+        feature_names : list, optional
+            List of feature names for feature importance extraction
         """
         logger.info(f"Starting evaluation of {len(models)} models on test set")
 
@@ -451,13 +454,14 @@ class ModelOptimizer:
 
             # Store predictions temporarily for metrics computation (not saved to results)
             results[model_name] = {
-                "y_test": list(y_test),
-                "y_pred": list(y_pred),
-                "y_pred_proba": list(y_pred_proba)
+                "y_test": y_test,
+                "y_pred": y_pred,
+                "y_pred_proba": y_pred_proba
             }
 
             logger.info(f"Confusion matrix for {model_name}:")
-            compute_and_show_confusion_matrix(y_test, y_pred, model_name, save_dir=self.model_save_dir)
+            cf_df = compute_and_show_confusion_matrix(y_test, y_pred, model_name, save_dir=self.model_save_dir)
+            results[model_name]["confusion_matrix"] = cf_df.to_dict()
 
             logger.info(f"Metrics for {model_name}:")
             metrics = get_classification_metrics(y_test, y_pred, y_pred_proba, model_name)
@@ -484,13 +488,69 @@ class ModelOptimizer:
                 json.dump(metrics_json, f, indent=2)
             
             logger.info(f"Saved metrics to {metrics_json_path}")
+            
+            # Extract and save feature importance
+            if feature_names is not None:
+                logger.info(
+                    f"Extracting feature importance for {model_name}")
+                importance_df = extract_feature_importance(
+                    models[model_name], feature_names, model_name)
+
+                if importance_df is not None:
+                    # Log top 10 features
+                    logger.info(
+                        f"Top 10 most important features for {model_name}:")
+                    top_10 = importance_df.head(10)
+                    for idx, row in top_10.iterrows():
+                        logger.info(
+                            f"  {idx+1}. {row['feature_name']}: "
+                            f"{row['importance']:.6f}")
+
+                    # Save to CSV
+                    importance_csv_path = os.path.join(
+                        self.model_save_dir,
+                        f'{clean_name}_feature_importance.csv')
+                    importance_df.to_csv(importance_csv_path, index=False)
+                    logger.info(
+                        f"Saved feature importance to {importance_csv_path}")
+
+                    # Save to JSON
+                    importance_json = {
+                        "feature_names":
+                            importance_df['feature_name'].tolist(),
+                        "importance_values":
+                            importance_df['importance'].tolist()
+                    }
+                    importance_json_path = os.path.join(
+                        self.model_save_dir,
+                        f'{clean_name}_feature_importance.json')
+                    with open(importance_json_path, 'w') as f:
+                        json.dump(importance_json, f, indent=2)
+                    logger.info(
+                        f"Saved feature importance JSON to "
+                        f"{importance_json_path}")
+
+                    # Store in results
+                    results[model_name]["feature_importance"] = (
+                        importance_df.to_dict('records'))
+                else:
+                    logger.info(
+                        f"Model {model_name} does not support "
+                        f"feature importance extraction")
+            
             logger.info(f"Completed evaluation for {model_name}")
         
-        # Remove predictions from results before returning (only keep metrics)
+        # Remove predictions from results before returning
+        # (keep metrics, confusion matrix, and feature importance)
         for model_name in results.keys():
-            results[model_name] = {
-                "metrics": results[model_name]["metrics"]
+            result_dict = {
+                "metrics": results[model_name]["metrics"],
+                "confusion_matrix": results[model_name]["confusion_matrix"]
             }
+            if "feature_importance" in results[model_name]:
+                result_dict["feature_importance"] = (
+                    results[model_name]["feature_importance"])
+            results[model_name] = result_dict
 
         logger.info(f"Completed evaluation of all {len(results)} models")
         return results

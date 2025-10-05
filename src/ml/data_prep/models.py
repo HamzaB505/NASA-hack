@@ -4,13 +4,17 @@ import pickle
 import os
 import json
 import numpy as np
+import warnings
+from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.compose import ColumnTransformer, make_column_selector
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.impute import KNNImputer
 from sklearn.feature_selection import SelectFromModel
 from sklearn.model_selection import StratifiedKFold
+from sklearn.calibration import CalibratedClassifierCV
 from joblib import Memory
 from skopt import BayesSearchCV
 from skopt.space import Real, Integer, Categorical
@@ -19,7 +23,256 @@ from src.ml import logger
 from src.ml.data_prep.metrics import (compute_and_show_confusion_matrix,
                                       get_classification_metrics,
                                       compare_models_metrics)
-from src.ml.data_prep.utils import extract_feature_importance
+from src.ml.data_prep.utils import (extract_feature_importance,
+                                    extract_selected_features,
+                                    map_transformed_to_original_features)
+
+
+class OutlierCapper(BaseEstimator, TransformerMixin):
+    """
+    Custom transformer to cap outliers at specified percentiles.
+    Preserves NaN values for subsequent imputation.
+    """
+    
+    def __init__(self, percentile=0.01):
+        """
+        Initialize the OutlierCapper.
+        
+        Parameters:
+        -----------
+        percentile : float, default=0.01
+            Percentile threshold for capping (0.01 means cap at 1st and 99th)
+        """
+        self.percentile = percentile
+        self.bounds_ = {}
+    
+    def fit(self, X, y=None):
+        """
+        Learn the outlier bounds from the training data.
+        
+        Parameters:
+        -----------
+        X : array-like or pd.DataFrame
+            Input features
+        y : array-like, optional
+            Target variable (not used)
+            
+        Returns:
+        --------
+        self
+        """
+        X_df = pd.DataFrame(X) if not isinstance(X, pd.DataFrame) else X
+        
+        outliers_count = 0
+        n_features_with_outliers = 0
+        
+        for col_idx, col in enumerate(X_df.columns):
+            col_data = X_df.iloc[:, col_idx] if isinstance(X_df.columns[0], int) else X_df[col]
+            
+            if col_data.notna().sum() > 0:  # Only if has non-NaN values
+                lower_bound = col_data.quantile(self.percentile)
+                upper_bound = col_data.quantile(1 - self.percentile)
+                self.bounds_[col_idx] = {
+                    'lower': lower_bound,
+                    'upper': upper_bound
+                }
+                
+                # Count outliers (both tails)
+                outliers_lower = (col_data < lower_bound).sum()
+                outliers_upper = (col_data > upper_bound).sum()
+                feature_outliers = outliers_lower + outliers_upper
+                
+                if feature_outliers > 0:
+                    n_features_with_outliers += 1
+                    outliers_count += feature_outliers
+                    
+                    # Get feature name
+                    feature_name = col if not isinstance(col, int) else f"Feature_{col}"
+                    
+                    # Log per-feature details
+                    cap_details = []
+                    if outliers_lower > 0:
+                        cap_details.append(
+                            f"{outliers_lower} values < {lower_bound:.4f} "
+                            f"capped to {lower_bound:.4f}"
+                        )
+                    if outliers_upper > 0:
+                        cap_details.append(
+                            f"{outliers_upper} values > {upper_bound:.4f} "
+                            f"capped to {upper_bound:.4f}"
+                        )
+                    
+                    logger.info(f"  Feature '{feature_name}': {', '.join(cap_details)}")
+        
+        if outliers_count > 0:
+            logger.info(f"OutlierCapper: Total {outliers_count} outliers capped across "
+                       f"{n_features_with_outliers} features")
+        
+        return self
+    
+    def transform(self, X):
+        """
+        Apply outlier capping to the input data.
+        
+        Parameters:
+        -----------
+        X : array-like or pd.DataFrame
+            Input features
+            
+        Returns:
+        --------
+        np.ndarray
+            Transformed features with capped outliers
+        """
+        X_df = pd.DataFrame(X) if not isinstance(X, pd.DataFrame) else X.copy()
+        
+        for col_idx, bounds in self.bounds_.items():
+            if col_idx < len(X_df.columns):
+                col_data = X_df.iloc[:, col_idx] if isinstance(X_df.columns[0], int) else X_df[X_df.columns[col_idx]]
+                X_df.iloc[:, col_idx] = col_data.clip(
+                    lower=bounds['lower'],
+                    upper=bounds['upper']
+                )
+        
+        return X_df.values if isinstance(X, np.ndarray) else X_df.values
+
+
+class NaNPreservingOneHotEncoder(BaseEstimator, TransformerMixin):
+    """
+    Custom OneHotEncoder that preserves NaN values in the encoded output.
+    This allows KNNImputer to impute categorical features alongside numerical ones.
+    """
+    
+    def __init__(self, handle_unknown='ignore', drop='first', sparse_output=False, dtype='float64'):
+        """
+        Initialize the NaNPreservingOneHotEncoder.
+        
+        Parameters:
+        -----------
+        handle_unknown : str, default='ignore'
+            How to handle unknown categories during transform
+        drop : str, default='first'
+            Whether to drop the first category to avoid multicollinearity
+        sparse_output : bool, default=False
+            Whether to return sparse matrix
+        dtype : str, default='float64'
+            Data type for output
+        """
+        self.handle_unknown = handle_unknown
+        self.drop = drop
+        self.sparse_output = sparse_output
+        self.dtype = dtype
+        self.encoder = None
+        self.n_features_in_ = None
+        self.feature_names_out_ = None
+    
+    def fit(self, X, y=None):
+        """
+        Fit the OneHotEncoder on non-NaN values.
+        
+        Parameters:
+        -----------
+        X : array-like or pd.DataFrame
+            Input categorical features
+        y : array-like, optional
+            Target variable (not used)
+            
+        Returns:
+        --------
+        self
+        """
+        X_df = pd.DataFrame(X) if not isinstance(X, pd.DataFrame) else X.copy()
+        self.n_features_in_ = X_df.shape[1]
+        
+        # Create temporary data with NaN replaced by a sentinel for fitting
+        X_temp = X_df.copy()
+        sentinel = '__NAN_SENTINEL__'
+        
+        for col in X_temp.columns:
+            X_temp[col] = X_temp[col].fillna(sentinel)
+        
+        # Fit the encoder on non-NaN values
+        self.encoder = OneHotEncoder(
+            handle_unknown=self.handle_unknown,
+            drop=self.drop,
+            sparse_output=self.sparse_output,
+            dtype=self.dtype
+        )
+        self.encoder.fit(X_temp)
+        
+        # Store feature names for reference
+        try:
+            self.feature_names_out_ = self.encoder.get_feature_names_out()
+        except AttributeError:
+            self.feature_names_out_ = None
+        
+        logger.debug(f"NaNPreservingOneHotEncoder fitted with {self.n_features_in_} input features, "
+                    f"producing {len(self.feature_names_out_) if self.feature_names_out_ is not None else 'unknown'} output features")
+        
+        return self
+    
+    def transform(self, X):
+        """
+        Transform categorical features to one-hot encoding, preserving NaN as NaN.
+        
+        Parameters:
+        -----------
+        X : array-like or pd.DataFrame
+            Input categorical features
+            
+        Returns:
+        --------
+        np.ndarray
+            One-hot encoded features with NaN preserved
+        """
+        X_df = pd.DataFrame(X) if not isinstance(X, pd.DataFrame) else X.copy()
+        
+        # Track which rows have NaN in each column
+        nan_masks = []
+        for col_idx, col in enumerate(X_df.columns):
+            nan_mask = X_df.iloc[:, col_idx].isna()
+            nan_masks.append(nan_mask)
+        
+        # Replace NaN with sentinel for encoding
+        X_temp = X_df.copy()
+        sentinel = '__NAN_SENTINEL__'
+        for col in X_temp.columns:
+            X_temp[col] = X_temp[col].fillna(sentinel)
+        
+        # Apply one-hot encoding (suppress unknown category warnings)
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore',
+                                    message='Found unknown categories',
+                                    category=UserWarning)
+            X_encoded = self.encoder.transform(X_temp)
+        
+        # Convert to dense array if needed
+        if hasattr(X_encoded, 'toarray'):
+            X_encoded = X_encoded.toarray()
+        
+        # Get the feature ranges for each original column
+        feature_ranges = []
+        start_idx = 0
+        for cat_idx, categories in enumerate(self.encoder.categories_):
+            n_categories = len(categories)
+            if self.drop == 'first':
+                n_categories -= 1
+            feature_ranges.append((start_idx, start_idx + n_categories))
+            start_idx += n_categories
+        
+        # Set encoded features to NaN where original was NaN
+        total_nan_rows = 0
+        for col_idx, nan_mask in enumerate(nan_masks):
+            if nan_mask.any():
+                start_idx, end_idx = feature_ranges[col_idx]
+                X_encoded[nan_mask, start_idx:end_idx] = np.nan
+                total_nan_rows += nan_mask.sum()
+        
+        if total_nan_rows > 0:
+            logger.debug(f"Preserved {total_nan_rows} NaN values across "
+                        f"{len(nan_masks)} categorical features for KNN imputation")
+        
+        return X_encoded
 
 
 class ModelOptimizer:
@@ -60,8 +313,9 @@ class ModelOptimizer:
     def create_model_pipelines(self):
         """
         Create a collection of model pipelines with standard preprocessing.
-        Each pipeline includes KNN imputation, standard scaling, feature 
-        selection, and a classifier.
+        Each pipeline uses ColumnTransformer to handle numerical and categorical
+        features separately, followed by KNN imputation, feature selection, 
+        and a classifier.
         
         Returns:
         --------
@@ -95,27 +349,64 @@ class ModelOptimizer:
         pipelines = {}
         
         for model_name, model in models.items():
+            # Define numerical processor: cap outliers only (no imputation/scaling yet)
+            numeric_processor = Pipeline(steps=[
+                ("outlier_capper", OutlierCapper(percentile=0.01))
+            ])
+            
+            # Define categorical processor: one-hot encode while preserving NaN
+            categorical_processor = Pipeline(steps=[
+                ("onehot", NaNPreservingOneHotEncoder(
+                    handle_unknown="ignore",
+                    drop="first",
+                    sparse_output=False,
+                    dtype='float64'
+                ))
+            ])
+            
+            # Create ColumnTransformer to apply processors to respective columns
+            preprocessor = ColumnTransformer(
+                transformers=[
+                    ("num", numeric_processor, 
+                     make_column_selector(dtype_include=np.number)),
+                    ("cat", categorical_processor, 
+                     make_column_selector(dtype_include=object))
+                ]
+            )
+            
+            # Wrap the model with calibration
+            calibrated_model = CalibratedClassifierCV(
+                estimator=model,
+                method='sigmoid',  # Use sigmoid (Platt scaling) for binary classification
+                cv=3,  # Use 3-fold CV for calibration
+                n_jobs=-1
+            )
+            
+            # Create the full pipeline
             pipeline = Pipeline([
-                ('scaler', StandardScaler()),
+                ('preprocessor', preprocessor),
                 ('imputer', KNNImputer(n_neighbors=5)),
+                ('scaler', StandardScaler()),
                 ('feature_selector', SelectFromModel(
                     RandomForestClassifier(
                         n_estimators=100,
                         random_state=self.random_state)
                 )),
-                ('classifier', model)
+                ('classifier', calibrated_model)
                 ],
                 memory=self.memory)
             pipelines[model_name] = pipeline
-            logger.debug(f"Created pipeline for {model_name}")
+            logger.debug(f"Created pipeline for {model_name} with probability calibration")
         
         self.pipelines = pipelines
         logger.info(f"Successfully created {len(pipelines)} model pipelines")
         return pipelines
 
-    def get_bayesian_search_spaces(self):
+    def get_bayesian_search_spaces(self, n_features=None):
         """
         Define hyperparameter search spaces for Bayesian optimization.
+        Note: classifier is wrapped with CalibratedClassifierCV, so parameters
+        need to use 'classifier__estimator__' prefix to access the base estimator.
         
         Returns:
         --------
@@ -123,49 +414,51 @@ class ModelOptimizer:
             Dictionary containing model name as key and search space as value
         """
         logger.info("Defining Bayesian search spaces for hyperparameter optimization")
-        
+
+        max_features_upper = min(30, n_features) if n_features else 30
+
         search_spaces = {
             'Logistic Regression': {
-                'feature_selector__max_features': Integer(5, 30),
-                'classifier__C': Real(0.01, 100, prior='log-uniform'),
-                'classifier__penalty': Categorical(['l1', 'l2'])
+                'feature_selector__max_features': Integer(5, max_features_upper),
+                'classifier__estimator__C': Real(0.01, 100, prior='log-uniform'),
+                'classifier__estimator__penalty': Categorical(['l2'])
             },
             
             'Random Forest': {
-                'feature_selector__max_features': Integer(5, 30),
-                'classifier__n_estimators': Integer(50, 300),
-                'classifier__min_samples_split': Integer(2, 20)
+                'feature_selector__max_features': Integer(5, max_features_upper),
+                'classifier__estimator__n_estimators': Integer(50, 300),
+                'classifier__estimator__min_samples_split': Integer(2, 20)
             },
             
             'Gradient Boosting': {
-                'feature_selector__max_features': Integer(5, 30),
-                'classifier__n_estimators': Integer(50, 300),
-                'classifier__learning_rate': Real(
+                'feature_selector__max_features': Integer(5, max_features_upper),
+                'classifier__estimator__n_estimators': Integer(50, 300),
+                'classifier__estimator__learning_rate': Real(
                     0.01, 0.3, prior='log-uniform'
                 ),
-                'classifier__max_depth': Integer(3, 10)
+                'classifier__estimator__max_depth': Integer(3, 10)
             },
             
             'XGBoost': {
-                'feature_selector__max_features': Integer(5, 30),
-                'classifier__n_estimators': Integer(50, 300),
-                'classifier__learning_rate': Real(
+                'feature_selector__max_features': Integer(5, max_features_upper),
+                'classifier__estimator__n_estimators': Integer(50, 300),
+                'classifier__estimator__learning_rate': Real(
                     0.01, 0.3, prior='log-uniform'
                 ),
-                'classifier__max_depth': Integer(3, 10)
+                'classifier__estimator__max_depth': Integer(3, 10)
             },
             
             'SVM': {
-                'feature_selector__max_features': Integer(5, 30),
-                'classifier__C': Real(0.1, 100, prior='log-uniform')
+                'feature_selector__max_features': Integer(5, max_features_upper),
+                'classifier__estimator__C': Real(0.1, 100, prior='log-uniform')
             },
             
             'Decision Tree': {
-                'feature_selector__max_features': Integer(5, 30),
-                'classifier__min_samples_split': Integer(2, 20)
+                'feature_selector__max_features': Integer(5, max_features_upper),
+                'classifier__estimator__min_samples_split': Integer(2, 20)
             }
         }
-        
+
         self.search_spaces = search_spaces
         logger.info(f"Defined search spaces for {len(search_spaces)} models")
         return search_spaces
@@ -378,7 +671,7 @@ class ModelOptimizer:
         if self.pipelines is None:
             self.create_model_pipelines()
         if self.search_spaces is None:
-            self.get_bayesian_search_spaces()
+            self.get_bayesian_search_spaces(n_features=X_train.shape[1])
 
         optimized_models = {}
         model_names = list(self.pipelines.keys())
@@ -488,6 +781,56 @@ class ModelOptimizer:
                 json.dump(metrics_json, f, indent=2)
             
             logger.info(f"Saved metrics to {metrics_json_path}")
+            
+            # Extract and save selected features for prediction
+            if feature_names is not None:
+                logger.info(
+                    f"Extracting selected features for {model_name}")
+                selected_features = extract_selected_features(
+                    models[model_name], feature_names, model_name)
+                
+                if selected_features is not None:
+                    # Create mapping from transformed to original feature names
+                    feature_mapping = map_transformed_to_original_features(selected_features)
+                    
+                    # Save selected features to JSON
+                    features_json = {
+                        "n_features": len(selected_features),
+                        "feature_names": selected_features,
+                        "feature_mapping": feature_mapping,
+                        "note": "These are the exact transformed feature names required for prediction. "
+                               "Use 'feature_mapping' to understand which original features they came from."
+                    }
+                    features_json_path = os.path.join(
+                        self.model_save_dir,
+                        f'{clean_name}_selected_features.json')
+                    with open(features_json_path, 'w') as f:
+                        json.dump(features_json, f, indent=2)
+                    logger.info(
+                        f"Saved {len(selected_features)} selected features to {features_json_path}")
+                    
+                    # Also save a simplified version with just original feature names
+                    # (for backward compatibility and easier reading)
+                    original_features = list(set([
+                        mapping['original_feature'] 
+                        for mapping in feature_mapping.values()
+                    ]))
+                    simple_features_json = {
+                        "n_original_features": len(original_features),
+                        "original_feature_names": sorted(original_features),
+                        "note": "These are the original feature names (before transformations like one-hot encoding). "
+                               "For the exact transformed feature names the model expects, see the main selected_features file."
+                    }
+                    simple_features_json_path = os.path.join(
+                        self.model_save_dir,
+                        f'{clean_name}_original_features.json')
+                    with open(simple_features_json_path, 'w') as f:
+                        json.dump(simple_features_json, f, indent=2)
+                    logger.info(
+                        f"Saved {len(original_features)} original feature names to {simple_features_json_path}")
+                else:
+                    logger.warning(
+                        f"Could not extract selected features for {model_name}")
             
             # Extract and save feature importance
             if feature_names is not None:

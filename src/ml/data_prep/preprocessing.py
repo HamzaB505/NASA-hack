@@ -1,10 +1,17 @@
 import pandas as pd
 import numpy as np
 import requests
+import enum
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.model_selection import train_test_split
 
 from src.ml import logger
+
+
+class DATATYPE(enum.Enum):
+    KEPLER = "KEPLER"
+    TESS = "TESS"
+    K2 = "K2"
 
 
 class DataPreprocessor:
@@ -12,7 +19,10 @@ class DataPreprocessor:
     A class for preprocessing Kepler exoplanet data.
     """
     
-    def __init__(self, data_dir: str = './data'):
+    def __init__(
+            self,
+            data_dir: str,
+            datatype: DATATYPE = DATATYPE.KEPLER):
         """
         Initialize the DataPreprocessor.
         
@@ -20,8 +30,11 @@ class DataPreprocessor:
         -----------
         data_dir : str, default='../data'
             Directory path for data files
+        datatype : DATATYPE, default=DATATYPE.KEPLER
+            Dataset typeto use
         """
         self.data_dir = data_dir
+        self.datatype = datatype
         self.random_state = 42
 
     def download_data(self, url: str = None):
@@ -69,6 +82,65 @@ class DataPreprocessor:
                              f"{delimiter}: {e}")
 
         raise ValueError(f"No data defined for file {filename}")
+
+
+    def map_to_binary(self, disposition):
+            if pd.isna(disposition):
+                return np.nan
+            elif disposition in ['CP', 'KP', 'PC']:  # Confirmed planets + candidates
+                return 1
+            elif disposition in ['APC', 'FP', 'FA']:  # False positives + alarms
+                return 0
+            else:
+                return np.nan  # Unknown categories become NaN
+
+    def prepare_tess_data(self, filename: str):
+
+        for delimiter in [',', ';']:
+            logger.info(f"Reading file {filename} with delimiter {delimiter}")
+            try:
+                dataset = pd.read_csv(
+                    f'{self.data_dir}/{filename}',
+                    delimiter=delimiter)
+                logger.info(f"Read file {filename} with delimiter {delimiter}")
+                break
+            except Exception as e:
+                logger.error(f"Error reading file {filename} with delimiter "
+                             f"{delimiter}: {e}")
+
+        unusables = ["str", "id", "date", "created", "update", "toi"]
+        keep = [col for col in dataset.columns if not any(unus in col for unus in unusables)]
+        dataset = dataset[keep]
+        
+        y = pd.DataFrame(dataset["tfopwg_disp"].apply(self.map_to_binary))
+
+        drop_cols = [
+            # Planet properties that depend on refined stellar params
+            "pl_rade", "pl_radeerr1", "pl_radeerr2", "pl_radelim",
+            "pl_insol", "pl_insolerr1", "pl_insolerr2", "pl_insollim",
+            "pl_eqt",  "pl_eqterr1",  "pl_eqterr2",  "pl_eqtlim",
+
+            # Stellar parameter uncertainties (strong follow-up proxies)
+            "st_tefferr1", "st_tefferr2",
+            "st_loggerr1", "st_loggerr2",
+            "st_raderr1",  "st_raderr2",
+            "st_disterr1", "st_disterr2",
+
+            # Stellar “limit” flags tied to the above derived params
+            "st_tefflim", "st_logglim", "st_radlim", "st_distlim",
+
+            # (If present) non-predictive/admin or time-leaky
+            "toi", "rastr", "decstr", "rowupdate", "toi_created",
+
+            # (If present) use tid only for grouping in CV, not as a feature
+            "tid",
+        ]
+        drop_cols = [col for col in drop_cols if col in dataset.columns]
+
+
+        X = dataset.drop(columns=["tfopwg_disp"]+drop_cols)
+
+        return X, y
 
     def process_disposition_labels(self, y_df: pd.DataFrame):
         """
@@ -169,6 +241,39 @@ class DataPreprocessor:
         else:
             logger.info("No columns with single values found")
         
+        # Drop additional columns if they still exist
+        drop_cols = [
+            # Direct/near-label info
+            "koi_disposition",         # final archive disposition
+            "koi_pdisposition",        # disposition using Kepler data
+            "kepler_name",             # only assigned for confirmed planets → label proxy
+
+            # Robovetter major FP flags (encodes vetting outcome)
+            "koi_fpflag_nt",           # not transit-like
+            "koi_fpflag_ss",           # stellar eclipse
+            "koi_fpflag_co",           # centroid offset
+            "koi_fpflag_ec",           # ephemeris match / contamination
+
+            # Planet properties that depend on refined stellar params
+            "koi_prad", "koi_prad_err1", "koi_prad_err2",
+            "koi_teq",  "koi_teq_err1",  "koi_teq_err2",
+            "koi_insol", "koi_insol_err1", "koi_insol_err2",
+
+            # Stellar parameter uncertainties (follow-up/derived)
+            "koi_steff_err1", "koi_steff_err2",
+            "koi_slogg_err1", "koi_slogg_err2",
+            "koi_srad_err1", "koi_srad_err2",
+
+            # Cohort/version info (can cause distribution shift across deliveries)
+            "koi_tce_delivname",
+        ]
+        
+        existing_cols_to_drop = [col for col in drop_cols if col in df.columns]
+        
+        if existing_cols_to_drop:
+            logger.info(f"Dropping additional columns: {existing_cols_to_drop}")
+            df.drop(columns=existing_cols_to_drop, inplace=True)
+
         return df
 
     def process_datalink_columns(self, df: pd.DataFrame):
@@ -236,7 +341,7 @@ class DataPreprocessor:
                     
                     # Cap the values
                     df_copy[col] = df_copy[col].clip(lower=lower_bound, 
-                                                    upper=upper_bound)
+                                                     upper=upper_bound)
         
         return df_copy
 
@@ -465,8 +570,10 @@ class DataPreprocessor:
         X = self.process_datalink_columns(X_copy)
         X = self.process_comment_columns(X)
         X = self.drop_unwanted_columns(X)
-        X = self.cap_outliers(X)
-        X = self.one_hot_encode_sklearn_with_nan(X)
+        # Note: Outlier capping is now handled in the pipeline (DataTypeTransformer)
+        # X = self.cap_outliers(X)
+        # Note: One-hot encoding is now handled in the pipeline (DataTypeTransformer)
+        # X = self.one_hot_encode_sklearn_with_nan(X)
 
         return X
 
@@ -485,40 +592,77 @@ class DataPreprocessor:
             Processed X (features) and y (labels) DataFrames
         """
         # Load the data
-        X, y = self.define_data(filename)
         
-        # Process features
-        X_processed = self.prepare_data(X)
-        
-        # Process labels
-        y_processed = self.process_disposition_labels(y)
-
-        # Check if X_processed and y_processed have the same length
-        if len(X_processed) != len(y_processed):
-            raise ValueError(f"X_processed and y_processed have different lengths: "
-                           f"{len(X_processed)} vs {len(y_processed)}")
-        
-        # Check for missing values in y_processed and drop them along with corresponding X rows
-        if y_processed.isnull().any().any():
-            # Get indices of rows with missing values in y_processed
-            missing_indices = y_processed.isnull().any(axis=1)
+        if self.datatype == DATATYPE.KEPLER:
+            X, y = self.define_data(filename)
+            # Process features
+            X_processed = self.prepare_data(X)
             
-            # Drop rows with missing values from both X and y
-            X_processed = X_processed[~missing_indices]
-            y_processed = y_processed[~missing_indices]
+            # Process labels
+            y_processed = self.process_disposition_labels(y)
+
+            # Check if X_processed and y_processed have the same length
+            if len(X_processed) != len(y_processed):
+                raise ValueError(f"X_processed and y_processed have different lengths: "
+                            f"{len(X_processed)} vs {len(y_processed)}")
             
-            logger.info(f"Dropped {missing_indices.sum()} rows with missing labels")
+            # Check for missing values in y_processed and drop them along with corresponding X rows
+            if y_processed.isnull().any().any():
+                # Get indices of rows with missing values in y_processed
+                missing_indices = y_processed.isnull().any(axis=1)
+                
+                # Drop rows with missing values from both X and y
+                X_processed = X_processed[~missing_indices]
+                y_processed = y_processed[~missing_indices]
+                
+                logger.info(f"Dropped {missing_indices.sum()} rows with missing labels")
 
-        # Drop koi_score column leakage
-        X_processed.drop(columns=['koi_score'], inplace=True)
-        flag_cols = [col for col in X_processed.columns if "koi_fpflag" in col]
+                    # Drop koi_score column leakage
+            X_processed.drop(columns=['koi_score'], inplace=True)
+            flag_cols = [col for col in X_processed.columns if "koi_fpflag" in col]
 
-        if flag_cols:
-            logger.info(f"Dropping columns with koi_fpflag: {flag_cols}")
-            X_processed.drop(columns=flag_cols, inplace=True)
-            logger.info(f"Dropped columns with koi_fpflag: {flag_cols}")
+            if flag_cols:
+                logger.info(f"Dropping columns with koi_fpflag: {flag_cols}")
+                X_processed.drop(columns=flag_cols, inplace=True)
+                logger.info(f"Dropped columns with koi_fpflag: {flag_cols}")
+            else:
+                logger.info("No columns with koi_fpflag found")
+
+        elif self.datatype == DATATYPE.TESS:
+            # Process features
+            X_processed, y_processed = self.prepare_tess_data(filename)
+            identifiers = [col for col in X_processed.columns 
+                           if ("name" in col) or ("id" in col)]
+
+            data_cols = [col for col in X_processed.columns if "date" in col]
+
+            dropped_cols = identifiers + data_cols
+
+            X_processed.drop(columns=dropped_cols, inplace=True)
+
+            # Drop columns with only one unique value
+            single_value_cols = []
+            for col in X_processed.columns:
+                if X_processed[col].nunique() <= 1:
+                    single_value_cols.append(col)
+            
+            if single_value_cols:
+                logger.info(f"Dropping columns with single values: "
+                            f"{single_value_cols}")
+                X_processed = X_processed.drop(columns=single_value_cols)
+            else:
+                logger.info("No columns with single values found")
+            
+            # Process labels
+            # y_processed = self.process_disposition_labels(y)
+        elif self.datatype == DATATYPE.K2:
+            # Process features
+            X_processed = self.prepare_data(X)
+            
+            # Process labels
+            # y_processed = self.process_disposition_labels(y)
         else:
-            logger.info("No columns with koi_fpflag found")
+            raise ValueError(f"Invalid dataset: {self.datatype}")
 
         X_train, X_test, y_train, y_test = self.data_split(
             X_processed, y_processed)

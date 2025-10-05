@@ -1,0 +1,32 @@
+{
+    "metrics": {
+        "Logistic Regression": {
+            "metrics_names": [
+                "Accuracy",
+                "Precision",
+                "Recall",
+                "F1-Score",
+                "ROC AUC",
+                "PR AUC"
+            ],
+            "values": [
+                0.8625,
+                0.865,
+                0.8625,
+                0.8624,
+                0.9359,
+                0.9325
+            ],
+            "confusion_matrix": {
+                "Pred 0": {
+                    "True 0": 798,
+                    "True 1": 93
+                },
+                "Pred 1": {
+                    "True 0": 170,
+                    "True 1": 852
+                }
+            }
+        }
+    }
+}

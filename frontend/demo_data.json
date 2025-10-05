@@ -1,0 +1,75 @@
+{
+  "model_metrics": {
+    "accuracy": 86.25,
+    "precision": 86.50,
+    "recall": 86.25,
+    "f1_score": 86.24,
+    "roc_auc": 93.59,
+    "pr_auc": 93.25
+  },
+  "recent_discoveries": [
+    {
+      "name": "Kepler-452b",
+      "type": "Super Earth",
+      "status": "Confirmed Exoplanet",
+      "note": "Demo Example"
+    },
+    {
+      "name": "K2-987b",
+      "type": "Rocky Planet",
+      "status": "Confirmed Exoplanet",
+      "note": "Demo Example"
+    }
+  ],
+  "confusion_matrix": {
+    "true_negatives": 798,
+    "false_positives": 170,
+    "false_negatives": 93,
+    "true_positives": 852
+  },
+  "feature_importance": [
+    {"name": "koi_max_sngle_ev", "importance": 6.06},
+    {"name": "koi_depth", "importance": 2.61},
+    {"name": "koi_insol", "importance": 1.97},
+    {"name": "koi_max_mult_ev", "importance": 1.83},
+    {"name": "koi_dikco_msky", "importance": 1.62},
+    {"name": "koi_insol_err2", "importance": 1.28},
+    {"name": "koi_incl", "importance": 0.94},
+    {"name": "koi_ror", "importance": 0.72},
+    {"name": "koi_smet_err2", "importance": 0.54},
+    {"name": "koi_prad_err1", "importance": 0.44}
+  ],
+  "training_config": {
+    "cv_folds": 2,
+    "n_iter": 10,
+    "n_points": 5,
+    "scoring": "accuracy",
+    "n_train": 7651,
+    "n_test": 1913,
+    "n_features": 324,
+    "n_classes": 2
+  },
+  "telescope_info": {
+    "kepler": {
+      "name": "Kepler Space Telescope",
+      "launch_date": "2009-03-07",
+      "status": "Retired (2018)",
+      "discoveries": "2,662 confirmed exoplanets",
+      "model_accuracy": "86.25%"
+    },
+    "tess": {
+      "name": "Transiting Exoplanet Survey Satellite",
+      "launch_date": "2018-04-18",
+      "status": "Active",
+      "discoveries": "200+ confirmed exoplanets",
+      "model_accuracy": "Coming Soon"
+    },
+    "k2": {
+      "name": "Kepler's Extended Mission",
+      "launch_date": "2014-05-16",
+      "status": "Retired (2018)",
+      "discoveries": "500+ confirmed exoplanets",
+      "model_accuracy": "Coming Soon"
+    }
+  }
+}

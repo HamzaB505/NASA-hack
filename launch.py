@@ -30,9 +30,9 @@ if __name__ == "__main__":
 
         CONFIG = {
             "datatype": datatype,  # Options: "KEPLER", "TESS", "K2"
-            "cv": 2,
-            "n_iter": 10,
-            "n_points": 5,
+            "cv": 5,
+            "n_iter": 50,
+            "n_points": 10,
             "scoring": "accuracy",
             "n_jobs": -1
         }

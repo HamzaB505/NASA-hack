@@ -9,6 +9,9 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.compose import ColumnTransformer, make_column_selector
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import GradientBoostingClassifier
+from xgboost import XGBClassifier
+from sklearn.tree import DecisionTreeClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.impute import KNNImputer
@@ -328,18 +331,17 @@ class ModelOptimizer:
         models = {
             'Logistic Regression': LogisticRegression(
                 solver='liblinear',
-                random_state=self.random_state)
-            # ),
-            # 'Decision Tree': DecisionTreeClassifier(
-            #     random_state=self.random_state
-            # ),
-            # 'Random Forest': RandomForestClassifier(
-            #     random_state=self.random_state
-            # ),
-            # 'Gradient Boosting': GradientBoostingClassifier(
-            #     random_state=self.random_state
-            # ),
-            # 'XGBoost': XGBClassifier(random_state=self.random_state),
+                random_state=self.random_state),
+            'Decision Tree': DecisionTreeClassifier(
+                random_state=self.random_state
+            ),
+            'Random Forest': RandomForestClassifier(
+                random_state=self.random_state
+            ),
+            'Gradient Boosting': GradientBoostingClassifier(
+                random_state=self.random_state
+            ),
+            'XGBoost': XGBClassifier(random_state=self.random_state),
             # 'SVM': SVC(random_state=self.random_state, probability=True)
         }
         

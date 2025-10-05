@@ -94,7 +94,7 @@
             <div class="hero-container">
                 <div class="galaxy-background">
                     <video class="galaxy-video" autoplay muted loop playsinline preload="auto">
-                        <source src="GSFC_20080822_HST_m10232_COS_Install_006~orig.mp4" type="video/mp4">
+                        <source src="/static/GSFC_20080822_HST_m10232_COS_Install_006~orig.mp4" type="video/mp4">
                     </video>
                 </div>
                 
@@ -127,7 +127,7 @@
                                     </div>
                                     <h4>TESS</h4>
                                     <p>Transiting Exoplanet Survey Satellite</p>
-                                    <div class="accuracy-badge">Coming Soon</div>
+                                    <div class="accuracy-badge">78.84% Accuracy</div>
                                 </div>
                                 
                                 <div class="telescope-card" data-telescope="k2">
@@ -159,14 +159,13 @@
                     
                     <div class="hero-stats">
                         <div class="stat-card">
-                            <div class="stat-number" data-target="86.25">0</div>
+                            <div class="stat-number" data-target="0.87">0</div>
                             <div class="stat-label">Accuracy</div>
-                            <div class="stat-trend">↗ +2.3% vs baseline</div>
                         </div>
                         <div class="stat-card">
                             <div class="stat-number" data-target="7651">0</div>
                             <div class="stat-label">Samples Trained</div>
-                            <div class="stat-trend">Kepler + TESS + K2</div>
+                            <div class="stat-trend" id="telescopeTrend">Kepler</div>
                         </div>
                         <div class="stat-card">
                             <div class="stat-number" data-target="324">0</div>
@@ -220,48 +219,47 @@
                                 <i class="fas fa-satellite"></i>
                                 <span>TESS</span>
                             </button>
-                            <button class="satellite-btn" data-satellite="k2">
+                            <button class="satellite-btn" data-satellite="k2" disabled style="opacity: 0.5; cursor: not-allowed;">
                                 <i class="fas fa-satellite"></i>
-                                <span>K2</span>
+                                <span>K2 (Coming Soon)</span>
                             </button>
                         </div>
                     </div>
                 </div>
                 
                 <div class="analytics-grid">
-                    <!-- Performance Metrics Chart -->
-                    <div class="analytics-card metrics-chart-card">
+                    <!-- Test Metrics Table -->
+                    <div class="analytics-card metrics-table-card full-width">
                         <div class="chart-header">
-                            <h3>Performance Metrics</h3>
+                            <h3>Test Metrics</h3>
                             <div class="chart-controls">
-                                <button class="btn btn-sm" onclick="exportChart('metrics')" title="Export as PNG">
+                                <button class="btn btn-sm" onclick="exportMetricsTable()" title="Export as CSV">
                                     <i class="fas fa-download"></i>
-                                </button>
-                                <button class="btn btn-sm" onclick="exportChartData('metrics')" title="Export Data">
-                                    <i class="fas fa-file-export"></i>
                                 </button>
                             </div>
                         </div>
-                        <div class="chart-container">
+                        <div class="metrics-table-container">
+                            <table class="metrics-comparison-table" id="metricsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Model</th>
+                                        <th>Accuracy</th>
+                                        <th>Precision</th>
+                                        <th>Recall</th>
+                                        <th>F1-Score</th>
+                                        <th>ROC AUC</th>
+                                        <th>PR AUC</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="metricsTableBody">
+                                    <tr>
+                                        <td colspan="7" class="loading-cell">Loading metrics...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="metrics-chart-container">
                             <canvas id="metricsChart"></canvas>
-                        </div>
-                    </div>
-                    
-                    <!-- ROC Curve Chart -->
-                    <div class="analytics-card roc-chart-card">
-                        <div class="chart-header">
-                            <h3>ROC Curve</h3>
-                            <div class="chart-controls">
-                                <button class="btn btn-sm" onclick="exportChart('roc')" title="Export as PNG">
-                                    <i class="fas fa-download"></i>
-                                </button>
-                                <button class="btn btn-sm" onclick="exportChartData('roc')" title="Export Data">
-                                    <i class="fas fa-file-export"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="chart-container">
-                            <canvas id="rocChart"></canvas>
                         </div>
                     </div>
                     
@@ -595,7 +593,7 @@
                                 <div class="satellite-info">
                                     <h4>Kepler</h4>
                                     <p>Model Trained & Ready</p>
-                                    <div class="status-badge ready">86.25% Accuracy</div>
+                                    <div class="status-badge ready">Loading...</div>
                                 </div>
                             </div>
                             
@@ -605,8 +603,8 @@
                                 </div>
                                 <div class="satellite-info">
                                     <h4>TESS</h4>
-                                    <p>Training in Progress</p>
-                                    <div class="status-badge training">Coming Soon</div>
+                                    <p>Model Trained & Ready</p>
+                                    <div class="status-badge ready">Loading...</div>
                                 </div>
                             </div>
                             
@@ -661,7 +659,7 @@
                                 <i class="fas fa-rocket"></i>
                             </div>
                             <div class="stat-info">
-                                <div class="stat-number">86.25%</div>
+                                <div class="stat-number">...</div>
                                 <div class="stat-label">Prediction Accuracy</div>
                             </div>
                         </div>
@@ -671,7 +669,7 @@
                                 <i class="fas fa-database"></i>
                             </div>
                             <div class="stat-info">
-                                <div class="stat-number">7,651</div>
+                                <div class="stat-number">...</div>
                                 <div class="stat-label">Samples Trained</div>
                             </div>
                         </div>
@@ -681,7 +679,7 @@
                                 <i class="fas fa-vial"></i>
                             </div>
                             <div class="stat-info">
-                                <div class="stat-number">1,913</div>
+                                <div class="stat-number">...</div>
                                 <div class="stat-label">Test Samples</div>
                             </div>
                         </div>
@@ -691,7 +689,7 @@
                                 <i class="fas fa-cogs"></i>
                             </div>
                             <div class="stat-info">
-                                <div class="stat-number">324</div>
+                                <div class="stat-number">...</div>
                                 <div class="stat-label">Features Analyzed</div>
                             </div>
                         </div>

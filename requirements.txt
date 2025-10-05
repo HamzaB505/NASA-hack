@@ -5,3 +5,9 @@ scikit-optimize
 matplotlib
 seaborn
 requests
+
+uvicorn
+fastapi
+gunicorn
+python-multipart
+python-dotenv

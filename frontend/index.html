@@ -94,11 +94,7 @@
             <div class="hero-container">
                 <div class="galaxy-background">
                     <video class="galaxy-video" autoplay muted loop playsinline preload="auto">
-<<<<<<< HEAD
-                        <source src="GSFC_20080822_HST_m10232_COS_Install_006~orig.mp4" type="video/mp4">
-=======
                         <source src="/static/GSFC_20080822_HST_m10232_COS_Install_006~orig.mp4" type="video/mp4">
->>>>>>> ea08e74f096fe53284d3ab221b4cd1688a279e9b
                     </video>
                 </div>
                 
@@ -122,7 +118,6 @@
                                     </div>
                                     <h4>Kepler</h4>
                                     <p>NASA's planet-hunting telescope</p>
-                                    <div class="accuracy-badge">86.25% Accuracy</div>
                                 </div>
                                 
                                 <div class="telescope-card" data-telescope="tess">
@@ -131,11 +126,7 @@
                                     </div>
                                     <h4>TESS</h4>
                                     <p>Transiting Exoplanet Survey Satellite</p>
-<<<<<<< HEAD
-                                    <div class="accuracy-badge">Coming Soon</div>
-=======
-                                    <div class="accuracy-badge">78.84% Accuracy</div>
->>>>>>> ea08e74f096fe53284d3ab221b4cd1688a279e9b
+                                <div class="accuracy-badge">Coming Soon</div>
                                 </div>
                                 
                                 <div class="telescope-card" data-telescope="k2">
@@ -167,26 +158,16 @@
                     
                     <div class="hero-stats">
                         <div class="stat-card">
-<<<<<<< HEAD
-                            <div class="stat-number" data-target="86.25">0</div>
+                            <div class="stat-number" data-target="loading">0</div>
                             <div class="stat-label">Accuracy</div>
-                            <div class="stat-trend">↗ +2.3% vs baseline</div>
-=======
-                            <div class="stat-number" data-target="0.87">0</div>
-                            <div class="stat-label">Accuracy</div>
->>>>>>> ea08e74f096fe53284d3ab221b4cd1688a279e9b
                         </div>
                         <div class="stat-card">
-                            <div class="stat-number" data-target="7651">0</div>
+                            <div class="stat-number" data-target="loading">0</div>
                             <div class="stat-label">Samples Trained</div>
-<<<<<<< HEAD
-                            <div class="stat-trend">Kepler + TESS + K2</div>
-=======
                             <div class="stat-trend" id="telescopeTrend">Kepler</div>
->>>>>>> ea08e74f096fe53284d3ab221b4cd1688a279e9b
                         </div>
                         <div class="stat-card">
-                            <div class="stat-number" data-target="324">0</div>
+                            <div class="stat-number" data-target="loading">0</div>
                             <div class="stat-label">Features Analyzed</div>
                             <div class="stat-trend">Advanced ML Pipeline</div>
                         </div>
@@ -237,37 +218,15 @@
                                 <i class="fas fa-satellite"></i>
                                 <span>TESS</span>
                             </button>
-<<<<<<< HEAD
-                            <button class="satellite-btn" data-satellite="k2">
-                                <i class="fas fa-satellite"></i>
-                                <span>K2</span>
-=======
                             <button class="satellite-btn" data-satellite="k2" disabled style="opacity: 0.5; cursor: not-allowed;">
                                 <i class="fas fa-satellite"></i>
                                 <span>K2 (Coming Soon)</span>
->>>>>>> ea08e74f096fe53284d3ab221b4cd1688a279e9b
                             </button>
                         </div>
                     </div>
                 </div>
                 
                 <div class="analytics-grid">
-<<<<<<< HEAD
-                    <!-- Performance Metrics Chart -->
-                    <div class="analytics-card metrics-chart-card">
-                        <div class="chart-header">
-                            <h3>Performance Metrics</h3>
-                            <div class="chart-controls">
-                                <button class="btn btn-sm" onclick="exportChart('metrics')" title="Export as PNG">
-                                    <i class="fas fa-download"></i>
-                                </button>
-                                <button class="btn btn-sm" onclick="exportChartData('metrics')" title="Export Data">
-                                    <i class="fas fa-file-export"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="chart-container">
-=======
                     <!-- Test Metrics Table -->
                     <div class="analytics-card metrics-table-card full-width">
                         <div class="chart-header">
@@ -299,32 +258,10 @@
                             </table>
                         </div>
                         <div class="metrics-chart-container">
->>>>>>> ea08e74f096fe53284d3ab221b4cd1688a279e9b
                             <canvas id="metricsChart"></canvas>
                         </div>
                     </div>
                     
-<<<<<<< HEAD
-                    <!-- ROC Curve Chart -->
-                    <div class="analytics-card roc-chart-card">
-                        <div class="chart-header">
-                            <h3>ROC Curve</h3>
-                            <div class="chart-controls">
-                                <button class="btn btn-sm" onclick="exportChart('roc')" title="Export as PNG">
-                                    <i class="fas fa-download"></i>
-                                </button>
-                                <button class="btn btn-sm" onclick="exportChartData('roc')" title="Export Data">
-                                    <i class="fas fa-file-export"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="chart-container">
-                            <canvas id="rocChart"></canvas>
-                        </div>
-                    </div>
-                    
-=======
->>>>>>> ea08e74f096fe53284d3ab221b4cd1688a279e9b
                     <!-- Confusion Matrix -->
                     <div class="analytics-card confusion-matrix-card">
                         <h3>Confusion Matrix</h3>
@@ -372,9 +309,9 @@
                         </div>
                     </div>
                     
-                    <!-- Training Progress Chart -->
+                    <!-- Cross-Validation Progress Chart -->
                     <div class="analytics-card training-progress-card">
-                        <h3>Model Training Progress</h3>
+                        <h3>Model Cross-Validation training progress</h3>
                         <div class="chart-container">
                             <canvas id="trainingProgressChart"></canvas>
                         </div>
@@ -386,27 +323,27 @@
                         <div class="training-stats-static">
                             <div class="config-row">
                                 <span class="config-label">Training Samples:</span>
-                                <span class="config-value">7,651</span>
+                                <span class="config-value">Loading...</span>
                             </div>
                             <div class="config-row">
                                 <span class="config-label">Test Samples:</span>
-                                <span class="config-value">1,913</span>
+                                <span class="config-value">Loading...</span>
                             </div>
                             <div class="config-row">
                                 <span class="config-label">Features:</span>
-                                <span class="config-value">324</span>
+                                <span class="config-value">Loading...</span>
                             </div>
                             <div class="config-row">
                                 <span class="config-label">Classes:</span>
-                                <span class="config-value">2</span>
+                                <span class="config-value">Loading...</span>
                             </div>
                             <div class="config-row">
                                 <span class="config-label">CV Folds:</span>
-                                <span class="config-value">2</span>
+                                <span class="config-value">Loading...</span>
                             </div>
                             <div class="config-row">
                                 <span class="config-label">Optimization Iterations:</span>
-                                <span class="config-value">2, 5, 10</span>
+                                <span class="config-value">Loading...</span>
                             </div>
                         </div>
                     </div>
@@ -655,11 +592,7 @@
                                 <div class="satellite-info">
                                     <h4>Kepler</h4>
                                     <p>Model Trained & Ready</p>
-<<<<<<< HEAD
-                                    <div class="status-badge ready">86.25% Accuracy</div>
-=======
                                     <div class="status-badge ready">Loading...</div>
->>>>>>> ea08e74f096fe53284d3ab221b4cd1688a279e9b
                                 </div>
                             </div>
                             
@@ -669,13 +602,8 @@
                                 </div>
                                 <div class="satellite-info">
                                     <h4>TESS</h4>
-<<<<<<< HEAD
-                                    <p>Training in Progress</p>
-                                    <div class="status-badge training">Coming Soon</div>
-=======
                                     <p>Model Trained & Ready</p>
                                     <div class="status-badge ready">Loading...</div>
->>>>>>> ea08e74f096fe53284d3ab221b4cd1688a279e9b
                                 </div>
                             </div>
                             
@@ -730,11 +658,7 @@
                                 <i class="fas fa-rocket"></i>
                             </div>
                             <div class="stat-info">
-<<<<<<< HEAD
-                                <div class="stat-number">86.25%</div>
-=======
                                 <div class="stat-number">...</div>
->>>>>>> ea08e74f096fe53284d3ab221b4cd1688a279e9b
                                 <div class="stat-label">Prediction Accuracy</div>
                             </div>
                         </div>
@@ -744,11 +668,7 @@
                                 <i class="fas fa-database"></i>
                             </div>
                             <div class="stat-info">
-<<<<<<< HEAD
-                                <div class="stat-number">7,651</div>
-=======
                                 <div class="stat-number">...</div>
->>>>>>> ea08e74f096fe53284d3ab221b4cd1688a279e9b
                                 <div class="stat-label">Samples Trained</div>
                             </div>
                         </div>
@@ -758,11 +678,7 @@
                                 <i class="fas fa-vial"></i>
                             </div>
                             <div class="stat-info">
-<<<<<<< HEAD
-                                <div class="stat-number">1,913</div>
-=======
                                 <div class="stat-number">...</div>
->>>>>>> ea08e74f096fe53284d3ab221b4cd1688a279e9b
                                 <div class="stat-label">Test Samples</div>
                             </div>
                         </div>
@@ -772,11 +688,7 @@
                                 <i class="fas fa-cogs"></i>
                             </div>
                             <div class="stat-info">
-<<<<<<< HEAD
-                                <div class="stat-number">324</div>
-=======
                                 <div class="stat-number">...</div>
->>>>>>> ea08e74f096fe53284d3ab221b4cd1688a279e9b
                                 <div class="stat-label">Features Analyzed</div>
                             </div>
                         </div>

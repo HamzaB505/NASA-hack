@@ -679,6 +679,74 @@ async def get_feature_importance(telescope: str, model: str = "XGBoost"):
     
     raise HTTPException(status_code=404, detail=f"Feature importance data not found for {telescope} - {model}")
 
+@app.get("/api/cv_results/{telescope}")
+async def get_cv_results(telescope: str, model: str = "XGBoost"):
+    """Get cross-validation results for a specific telescope and model"""
+    telescope_upper = telescope.upper()
+    if telescope_upper not in ['KEPLER', 'TESS']:
+        raise HTTPException(status_code=404, detail=f"Telescope {telescope} not found")
+    
+    telescope_dir = MODELS_DIR / telescope_upper
+    model_name = model.replace(" ", "_")
+    
+    # Try to load CV results from JSON file
+    cv_results_file = telescope_dir / f"{model_name}_cv_results.json"
+    
+    if cv_results_file.exists():
+        try:
+            with open(cv_results_file, 'r') as f:
+                cv_data = json.load(f)
+                
+                return {
+                    "telescope": telescope_upper,
+                    "model": model,
+                    "best_score": cv_data.get("best_score"),
+                    "best_params": cv_data.get("best_params"),
+                    "cv_results": {
+                        "mean_test_score": cv_data.get("cv_results", {}).get("mean_test_score", []),
+                        "std_test_score": cv_data.get("cv_results", {}).get("std_test_score", []),
+                        "mean_fit_time": cv_data.get("cv_results", {}).get("mean_fit_time", [])
+                    },
+                    "source": "cv_results_file"
+                }
+        except Exception as e:
+            logger.error(f"Error loading CV results: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to load CV results: {str(e)}")
+    
+    raise HTTPException(status_code=404, detail=f"CV results not found for {telescope} - {model}")
+
+@app.get("/api/training_logs/{telescope}")
+async def get_training_logs(telescope: str):
+    """Get training logs for a specific telescope"""
+    telescope_upper = telescope.upper()
+    if telescope_upper not in ['KEPLER', 'TESS']:
+        raise HTTPException(status_code=404, detail=f"Telescope {telescope} not found")
+    
+    telescope_dir = MODELS_DIR / telescope_upper
+    
+    # Find the training log file (pattern: training_*.log)
+    log_files = list(telescope_dir.glob("training_*.log"))
+    
+    if not log_files:
+        raise HTTPException(status_code=404, detail=f"Training logs not found for {telescope}")
+    
+    # Use the first (most recent) log file
+    log_file = log_files[0]
+    
+    try:
+        with open(log_file, 'r') as f:
+            logs = f.read()
+            
+        return {
+            "telescope": telescope_upper,
+            "log_file": log_file.name,
+            "logs": logs,
+            "line_count": len(logs.split('\n'))
+        }
+    except Exception as e:
+        logger.error(f"Error reading training logs: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to read training logs: {str(e)}")
+
 @app.get("/api/dashboard/stats")
 async def get_dashboard_stats():
     """Get all dashboard statistics dynamically from model files"""

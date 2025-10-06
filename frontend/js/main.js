@@ -34,6 +34,8 @@ class ExoPlanetApp {
         this.showTelescopeInfo('kepler');
         // Load confusion matrix and charts for default telescope
         this.updateChartsForTelescope('kepler');
+        // Load training configuration for default telescope
+        this.updateTrainingConfig('kepler');
     }
 
     // Navigation Management
@@ -142,16 +144,65 @@ class ExoPlanetApp {
     async showTelescopeInfo(telescope) {
         // Fetch actual telescope data from the backend
         try {
-            const response = await fetch(`${this.apiBaseUrl}/api/telescope/${telescope}`);
-            const data = await response.json();
+            // const response = await fetch(`${this.apiBaseUrl}/api/telescope/${telescope}`);
+            // const data = await response.json();
+            // if (telescope == 'kepler') {
+            //     data = {
+            //         model_accuracy: 0.8960,
+            //         training_samples: 7651,
+            //         features: 87,
+            //         name: 'Kepler'
+            //     }
+
+            // } else if (telescope == 'tess') {
+            //     data = {
+            //         model_accuracy: 0.8215,
+            //         training_samples: 6162,
+            //         features: 24,
+            //         name: 'TESS'
+            //     }
             
+            // const statCards = document.querySelectorAll('.stat-card');
+            // this.updateStats(statCards, {
+            //     accuracy: data.model_accuracy || 'N/A',
+            //     samples: data.training_samples || 'N/A',
+            //     features: data.features || 'N/A',
+            //     telescope: data.name || telescope
+            // });
+            // Ensure hardcoded data is available outside the conditional blocks
+            var data;
+            if (telescope == 'kepler') {
+                data = {
+                    model_accuracy: 0.8960,
+                    training_samples: 7651,
+                    features: 87,
+                    name: 'Kepler'
+                };
+            } else if (telescope == 'tess') {
+                data = {
+                    model_accuracy: 0.8215,
+                    training_samples: 6162,
+                    features: 24,
+                    name: 'TESS'
+                };
+            }
+
+            // Select stat cards (was previously commented out)
             const statCards = document.querySelectorAll('.stat-card');
+
+            // Normalize accuracy to percentage if provided in [0,1]
+            let acc = data && typeof data.model_accuracy === 'number' ? data.model_accuracy : 'N/A';
+            // if (typeof acc === 'number' && acc <= 1) {
+            //     acc = acc ;
+            // }
+
             this.updateStats(statCards, {
-                accuracy: data.model_accuracy || 'N/A',
-                samples: data.training_samples || 'N/A',
-                features: data.features || 'N/A',
-                telescope: data.name || telescope
+                accuracy: typeof acc === 'number' ? acc.toFixed(2) : acc,
+                samples: (data && data.training_samples) || 'N/A',
+                features: (data && data.features) || 'N/A',
+                telescope: (data && data.name) || telescope
             });
+            
         } catch (error) {
             console.error('Error loading telescope info:', error);
             // Fallback to dashboard stats if available
@@ -170,6 +221,23 @@ class ExoPlanetApp {
 
     updateStats(statCards, stats) {
         if (statCards.length >= 3) {
+            // Normalize accuracy display to a two-decimal percentage regardless of input shape
+            // const accuracyEl = statCards[0].querySelector('.stat-number');
+            // if (accuracyEl) {
+            //     let acc = stats.accuracy;
+            //     // If string like "89.6%", strip the percent sign
+            //     if (typeof acc === 'string') {
+            //         acc = acc.replace('%', '').trim();
+            //         acc = parseFloat(acc);
+            //     }
+            //     // If in [0,1], convert to percent; if NaN, fallback to 0
+            //     if (typeof acc === 'number' && !isNaN(acc)) {
+            //         if (acc <= 1) acc = acc ;
+            //         accuracyEl.textContent = acc.toFixed(2);
+            //     } else {
+            //         accuracyEl.textContent = '0.00';
+            //     }
+            // }
             statCards[0].querySelector('.stat-number').textContent = stats.accuracy;
             statCards[1].querySelector('.stat-number').textContent = stats.samples;
             statCards[2].querySelector('.stat-number').textContent = stats.features;
@@ -201,6 +269,9 @@ class ExoPlanetApp {
                 // Reload metrics and charts for the selected telescope
                 this.loadModelMetrics(telescope);
                 this.updateChartsForTelescope(telescope);
+                
+                // Update training configuration for the selected telescope
+                this.updateTrainingConfig(telescope);
                 
                 // Update about section stats if available
                 if (this.dashboardStats) {
@@ -252,15 +323,87 @@ class ExoPlanetApp {
                 // Recreate feature importance chart with telescope-specific data
                 await window.chartManager.createFeatureImportanceChart(telescope);
                 
+                // Recreate training progress chart with telescope-specific CV results
+                await window.chartManager.createTrainingProgressChart();
+                
                 // Load confusion matrix image for this telescope
                 await window.chartManager.loadConfusionMatrixImage(telescope);
+            }
+            
+            // Update training logs for the selected telescope
+            if (window.enhancedFeatures) {
+                await window.enhancedFeatures.loadTrainingLogs(telescope);
             }
             
             // Update confusion matrix
             this.updateConfusionMatrix(data, telescope);
             
+            // Update training configuration
+            this.updateTrainingConfig(telescope);
+            
         } catch (error) {
             console.error('Error updating charts:', error);
+        }
+    }
+
+    async updateTrainingConfig(telescope) {
+        try {
+            // Fetch analytics data which includes experiment_config
+            const response = await fetch(`${this.apiBaseUrl}/api/analytics?telescope=${telescope}`);
+            const data = await response.json();
+            
+            if (!data.experiment_config) {
+                console.warn('No experiment config found for telescope:', telescope);
+                return;
+            }
+            
+            const config = data.experiment_config;
+            
+            // Update the training configuration display
+            const configRows = document.querySelectorAll('.training-stats-static .config-row');
+            
+            if (configRows.length >= 6) {
+                // Training Samples
+                const trainSamplesValue = configRows[0].querySelector('.config-value');
+                if (trainSamplesValue && config.n_train) {
+                    trainSamplesValue.textContent = config.n_train.toLocaleString();
+                }
+                
+                // Test Samples
+                const testSamplesValue = configRows[1].querySelector('.config-value');
+                if (testSamplesValue && config.n_test) {
+                    testSamplesValue.textContent = config.n_test.toLocaleString();
+                }
+                
+                // Features
+                const featuresValue = configRows[2].querySelector('.config-value');
+                if (featuresValue && config.n_features) {
+                    featuresValue.textContent = config.n_features.toLocaleString();
+                }
+                
+                // Classes
+                const classesValue = configRows[3].querySelector('.config-value');
+                if (classesValue && config.n_classes) {
+                    classesValue.textContent = config.n_classes;
+                }
+                
+                // CV Folds
+                const cvValue = configRows[4].querySelector('.config-value');
+                if (cvValue && config.cv) {
+                    cvValue.textContent = config.cv;
+                }
+                
+                // Optimization Iterations
+                const iterValue = configRows[5].querySelector('.config-value');
+                if (iterValue && config.n_iter) {
+                    iterValue.textContent = config.n_iter;
+                }
+            }
+            
+            console.log(`Updated training config for ${telescope}:`, config);
+            
+        } catch (error) {
+            console.error('Error updating training config:', error);
         }
     }
 
@@ -701,7 +844,7 @@ class ExoPlanetApp {
             }
             // Also load training logs when analytics section is shown
             if (window.enhancedFeatures) {
-                window.enhancedFeatures.loadTrainingLogs();
+                window.enhancedFeatures.loadTrainingLogs(this.selectedTelescope || 'kepler');
             }
         }, 500);
     }

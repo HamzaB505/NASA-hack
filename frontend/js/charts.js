@@ -162,6 +162,11 @@ class ChartManager {
         const ctx = document.getElementById('metricsChart');
         if (!ctx) return;
 
+        // Destroy existing chart if it exists
+        if (this.charts.metrics) {
+            this.charts.metrics.destroy();
+        }
+
         // Get best model for this telescope
         const bestModel = this.getBestModel(telescope);
         
@@ -417,6 +422,11 @@ class ChartManager {
         const ctx = document.getElementById('featureImportanceChart');
         if (!ctx) return;
 
+        // Destroy existing chart if it exists
+        if (this.charts.featureImportance) {
+            this.charts.featureImportance.destroy();
+        }
+
         // Default data (fallback)
         let featureLabels = [
             'koi_max_sngle_ev', 'koi_depth', 'koi_insol', 'koi_max_mult_ev',
@@ -543,56 +553,80 @@ class ChartManager {
         });
     }
 
-    // Training Progress Line Chart
-    createTrainingProgressChart() {
+    // Cross-Validation Progress Chart (using best model's CV results)
+    async createTrainingProgressChart() {
         const ctx = document.getElementById('trainingProgressChart');
         if (!ctx) return;
 
-        // Simulate training progress data
-        const epochs = Array.from({length: 20}, (_, i) => i + 1);
-        const trainLoss = epochs.map(epoch => 0.8 * Math.exp(-epoch/5) + 0.1 + Math.random() * 0.05);
-        const valLoss = epochs.map(epoch => 0.7 * Math.exp(-epoch/6) + 0.15 + Math.random() * 0.05);
-        const trainAcc = epochs.map(epoch => 0.5 + 0.4 * (1 - Math.exp(-epoch/4)) + Math.random() * 0.02);
-        const valAcc = epochs.map(epoch => 0.5 + 0.35 * (1 - Math.exp(-epoch/5)) + Math.random() * 0.02);
+        // Destroy existing chart if it exists
+        if (this.charts.trainingProgress) {
+            this.charts.trainingProgress.destroy();
+        }
+
+        // Default data (fallback)
+        let cvScores = Array.from({length: 50}, (_, i) => 0.85 + Math.random() * 0.03);
+        let bestScore = Math.max(...cvScores);
+        let bestIteration = cvScores.indexOf(bestScore);
+
+        // Try to fetch actual CV results from best model for current telescope
+        try {
+            const telescope = this.currentTelescope || 'kepler';
+            const bestModel = this.getBestModel(telescope);
+            const response = await fetch(`${this.apiBaseUrl}/api/cv_results/${telescope}?model=${bestModel}`);
+            if (response.ok) {
+                const data = await response.json();
+                if (data.cv_results && data.cv_results.mean_test_score) {
+                    cvScores = data.cv_results.mean_test_score;
+                    bestScore = data.best_score || Math.max(...cvScores);
+                    bestIteration = cvScores.indexOf(bestScore);
+                }
+            }
+        } catch (error) {
+            console.warn('Could not load CV results from backend, using defaults:', error);
+        }
+
+        const iterations = Array.from({length: cvScores.length}, (_, i) => i + 1);
+        
+        // Get model name for display
+        const telescope = this.currentTelescope || 'kepler';
+        const bestModel = this.getBestModel(telescope);
+        
+        // Calculate dynamic Y-axis range based on data
+        const scoresPercent = cvScores.map(score => score * 100);
+        const minScore = Math.min(...scoresPercent);
+        const maxScore = Math.max(...scoresPercent);
+        const range = maxScore - minScore;
+        const yMin = Math.floor(minScore - range * 0.1); // Add 10% padding below
+        const yMax = Math.ceil(maxScore + range * 0.1);  // Add 10% padding above
 
         const trainingData = {
-            labels: epochs,
+            labels: iterations,
             datasets: [{
-                label: 'Training Loss',
-                data: trainLoss,
-                borderColor: '#ff6b6b',
-                backgroundColor: 'rgba(255, 107, 107, 0.1)',
-                borderWidth: 2,
-                fill: false,
-                tension: 0.1,
-                yAxisID: 'y'
-            }, {
-                label: 'Validation Loss',
-                data: valLoss,
-                borderColor: '#ffd93d',
-                backgroundColor: 'rgba(255, 217, 61, 0.1)',
-                borderWidth: 2,
-                fill: false,
-                tension: 0.1,
-                yAxisID: 'y'
-            }, {
-                label: 'Training Accuracy',
-                data: trainAcc,
+                label: `CV Score (${bestModel})`,
+                data: scoresPercent,
                 borderColor: '#00d4ff',
                 backgroundColor: 'rgba(0, 212, 255, 0.1)',
-                borderWidth: 2,
-                fill: false,
-                tension: 0.1,
-                yAxisID: 'y1'
+                borderWidth: 3,
+                fill: true,
+                tension: 0.3,
+                pointRadius: 3,
+                pointHoverRadius: 6,
+                pointBackgroundColor: cvScores.map((score, i) => 
+                    i === bestIteration ? '#ffd93d' : '#00d4ff'
+                ),
+                pointBorderColor: cvScores.map((_, i) => 
+                    i === bestIteration ? '#ff6b6b' : '#ffffff'
+                ),
+                pointBorderWidth: cvScores.map((_, i) => i === bestIteration ? 3 : 1)
             }, {
-                label: 'Validation Accuracy',
-                data: valAcc,
-                borderColor: '#4ecdc4',
-                backgroundColor: 'rgba(78, 205, 196, 0.1)',
+                label: 'Best Score',
+                data: Array(cvScores.length).fill(bestScore * 100), // bestScore is already a decimal (0-1 range)
+                borderColor: '#ffd93d',
+                backgroundColor: 'transparent',
                 borderWidth: 2,
-                fill: false,
-                tension: 0.1,
-                yAxisID: 'y1'
+                borderDash: [5, 5],
+                pointRadius: 0,
+                fill: false
             }]
         };
 
@@ -619,12 +653,22 @@ class ChartManager {
                         borderWidth: 1,
                         cornerRadius: 8,
                         callbacks: {
+                            title: function(context) {
+                                const iteration = context[0].label;
+                                return `${bestModel} - Iteration ${iteration}`;
+                            },
                             label: function(context) {
-                                if (context.datasetIndex < 2) {
-                                    return `${context.dataset.label}: ${context.parsed.y.toFixed(4)}`;
+                                if (context.datasetIndex === 0) {
+                                    return `CV Score: ${context.parsed.y.toFixed(2)}%`;
                                 } else {
-                                    return `${context.dataset.label}: ${(context.parsed.y * 100).toFixed(2)}%`;
+                                    return `Best Score: ${context.parsed.y.toFixed(2)}%`;
                                 }
+                            },
+                            afterLabel: function(context) {
+                                if (context.datasetIndex === 0 && context.dataIndex === bestIteration) {
+                                    return '⭐ Best Model';
+                                }
+                                return '';
                             }
                         }
                     }
@@ -633,7 +677,7 @@ class ChartManager {
                     x: {
                         title: {
                             display: true,
-                            text: 'Epoch',
+                            text: 'Optimization Iteration',
                             color: '#b8b8d1',
                             font: {
                                 size: 14,
@@ -652,12 +696,9 @@ class ChartManager {
                         }
                     },
                     y: {
-                        type: 'linear',
-                        display: true,
-                        position: 'left',
                         title: {
                             display: true,
-                            text: 'Loss',
+                            text: 'Cross-Validation Score (%)',
                             color: '#b8b8d1',
                             font: {
                                 size: 14,
@@ -672,34 +713,13 @@ class ChartManager {
                             color: '#b8b8d1',
                             font: {
                                 size: 12
-                            }
-                        }
-                    },
-                    y1: {
-                        type: 'linear',
-                        display: true,
-                        position: 'right',
-                        title: {
-                            display: true,
-                            text: 'Accuracy',
-                            color: '#b8b8d1',
-                            font: {
-                                size: 14,
-                                weight: 'bold'
-                            }
-                        },
-                        grid: {
-                            drawOnChartArea: false,
-                        },
-                        ticks: {
-                            color: '#b8b8d1',
-                            font: {
-                                size: 12
                             },
                             callback: function(value) {
-                                return (value * 100).toFixed(0) + '%';
+                                return value.toFixed(1) + '%';
                             }
-                        }
+                        },
+                        min: yMin,
+                        max: yMax
                     }
                 },
                 animation: {
@@ -788,7 +808,14 @@ class ChartManager {
 
     // Load and display confusion matrix image
     async loadConfusionMatrixImage(telescope = 'kepler', model = null) {
+        const imgElement = document.getElementById('confusionMatrixImage');
+        const loadingElement = document.getElementById('confusionMatrixLoading');
+        
         try {
+            // Show loading state
+            if (loadingElement) loadingElement.style.display = 'block';
+            if (imgElement) imgElement.style.display = 'none';
+            
             // Use best model if not specified
             const selectedModel = model || this.getBestModel(telescope);
             console.log(`Loading confusion matrix for ${telescope} with model: ${selectedModel}`);
@@ -796,20 +823,36 @@ class ChartManager {
             const response = await fetch(`${this.apiBaseUrl}/api/confusion_matrix/${telescope}?model=${selectedModel}`);
             if (response.ok) {
                 const data = await response.json();
-                const imgElement = document.getElementById('confusionMatrixImage');
                 if (imgElement && data.image_url) {
                     // Add timestamp to force reload when switching telescopes
                     const timestamp = new Date().getTime();
                     imgElement.src = `${this.apiBaseUrl}${data.image_url}?t=${timestamp}`;
                     imgElement.alt = `Confusion Matrix for ${data.telescope} - ${data.model}`;
-                    imgElement.style.display = 'block';
-                    console.log(`Loaded confusion matrix image: ${data.image_url}`);
+                    
+                    // Show image and hide loading when image loads
+                    imgElement.onload = () => {
+                        imgElement.style.display = 'block';
+                        if (loadingElement) loadingElement.style.display = 'none';
+                        console.log(`✓ Loaded confusion matrix image: ${data.image_url}`);
+                    };
+                    
+                    imgElement.onerror = () => {
+                        if (loadingElement) {
+                            loadingElement.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Failed to load confusion matrix image';
+                        }
+                    };
                 }
             } else {
                 console.error(`Failed to load confusion matrix: ${response.status}`);
+                if (loadingElement) {
+                    loadingElement.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Confusion matrix not available';
+                }
             }
         } catch (error) {
             console.warn('Could not load confusion matrix image:', error);
+            if (loadingElement) {
+                loadingElement.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error loading confusion matrix';
+            }
         }
     }
 }

@@ -1,4 +1,4 @@
-s"""
+"""
 FastAPI Backend for ExoPlanet AI
 Handles file uploads, predictions, and model serving
 """
